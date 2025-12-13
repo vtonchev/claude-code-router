@@ -1,99 +1,30 @@
 /**
- * Gemini Interceptor Plugin
+ * Gemini Interceptor Plugin - Pure API Implementation
  * 
  * This plugin intercepts requests after the Gemini transformer has processed them
  * and modifies responses before they return through the transformer chain.
  * 
+ * Uses only pure HTTP APIs for OAuth - no external libraries.
+ * 
  * Features:
- * - OAuth2 authentication with Google credentials
+ * - OAuth2 authentication with Google (pure API)
  * - Thinking budget configuration
  * - Tool validation mode
  * - Request envelope wrapping
  * - Response streaming transformation
- * 
- * Usage in config.json:
- * {
- *   "transformers": [
- *     {
- *       "path": "/path/to/plugins/gemini-interceptor.js",
- *       "options": {
- *         "project": "your-project-id",
- *         "thinking_budget": 8192
- *       }
- *     }
- *   ],
- *   "Providers": [
- *     {
- *       "name": "gemini",
- *       "transformer": {
- *         "use": ["gemini", "gemini_interceptor"]
- *       }
- *     }
- *   ]
- * }
  */
 
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const http = require('http');
-const url = require('url');
-const readline = require('readline');
+const https = require('https');
 
 const CREDENTIALS_PATH = path.join(os.homedir(), '.claude-code-router', 'google_credentials.json');
-const SCOPES = [
-  'https://www.googleapis.com/auth/cloud-platform',
-  'https://www.googleapis.com/auth/generative-language.retriever'
-];
-const REDIRECT_PORT = 3333;
-const REDIRECT_URI = `http://localhost:${REDIRECT_PORT}/callback`;
 
-// Cache for the access token to avoid refreshing on every request
+// Cache for the access token
 let cachedAccessToken = null;
 let tokenExpiryTime = 0;
-
-/**
- * Prompts user for input via terminal
- */
-function prompt(question) {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
-  
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      rl.close();
-      resolve(answer.trim());
-    });
-  });
-}
-
-/**
- * Opens a URL in the default browser
- */
-function openBrowser(urlToOpen) {
-  const { exec } = require('child_process');
-  const platform = process.platform;
-  
-  let command;
-  if (platform === 'darwin') {
-    command = `open "${urlToOpen}"`;
-  } else if (platform === 'win32') {
-    command = `start "" "${urlToOpen}"`;
-  } else {
-    command = `xdg-open "${urlToOpen}"`;
-  }
-  
-  exec(command, (error) => {
-    if (error) {
-      console.log('\n⚠️  Could not open browser automatically.');
-      console.log('Please open this URL manually:\n');
-      console.log(urlToOpen);
-    }
-  });
-}
 
 /**
  * Loads credentials from persistent storage
@@ -125,179 +56,107 @@ function saveCredentials(credentials) {
 }
 
 /**
- * Runs the interactive OAuth login flow
+ * Makes an HTTPS POST request (pure Node.js, no libraries)
  */
-async function runLoginFlow() {
-  console.log('\n' + '═'.repeat(60));
-  console.log('  🔐 Google OAuth Login Required');
-  console.log('═'.repeat(60) + '\n');
-  
-  // Check for existing client credentials
-  const existing = loadCredentials();
-  let clientId = process.env.GOOGLE_CLIENT_ID;
-  let clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  
-  if (existing?.client_id && existing?.client_secret) {
-    console.log('📁 Found existing Client ID/Secret.');
-    const reuse = await prompt('Use existing credentials? (Y/n): ');
-    if (reuse.toLowerCase() !== 'n') {
-      clientId = existing.client_id;
-      clientSecret = existing.client_secret;
-    }
-  }
-  
-  if (!clientId) {
-    console.log('\n📋 To get OAuth credentials:');
-    console.log('   1. Go to https://console.cloud.google.com/apis/credentials');
-    console.log('   2. Create OAuth 2.0 Client ID (Desktop app)');
-    console.log(`   3. Add ${REDIRECT_URI} to Authorized redirect URIs\n`);
-    clientId = await prompt('Enter Google Client ID: ');
-  }
-  
-  if (!clientSecret) {
-    clientSecret = await prompt('Enter Google Client Secret: ');
-  }
-  
-  if (!clientId || !clientSecret) {
-    console.error('\n❌ Client ID and Secret required.');
-    return null;
-  }
-  
-  // Create OAuth2 client
-  const { OAuth2Client } = require('google-auth-library');
-  const oAuth2Client = new OAuth2Client(clientId, clientSecret, REDIRECT_URI);
-  
-  // Generate auth URL
-  const authUrl = oAuth2Client.generateAuthUrl({
-    access_type: 'offline',
-    scope: SCOPES,
-    prompt: 'consent'
-  });
-  
-  console.log('\n🌐 Opening browser for authentication...');
-  openBrowser(authUrl);
-  
-  // Wait for OAuth callback
-  const tokens = await new Promise((resolve, reject) => {
-    const server = http.createServer(async (req, res) => {
-      const queryParams = url.parse(req.url, true).query;
-      
-      if (queryParams.error) {
-        res.writeHead(400);
-        res.end('Authentication failed: ' + queryParams.error);
-        server.close();
-        reject(new Error(queryParams.error));
-        return;
+function httpsPost(url, data, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    const postData = typeof data === 'string' ? data : new URLSearchParams(data).toString();
+    
+    const options = {
+      hostname: urlObj.hostname,
+      port: 443,
+      path: urlObj.pathname + urlObj.search,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(postData),
+        ...headers
       }
-      
-      if (queryParams.code) {
+    };
+    
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
         try {
-          const { tokens } = await oAuth2Client.getToken(queryParams.code);
-          res.writeHead(200, { 'Content-Type': 'text/html' });
-          res.end('<html><body style="font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh;background:#1a1a2e;color:#eee"><div style="text-align:center"><h1 style="color:#4ade80">✅ Success!</h1><p>You can close this window.</p></div></body></html>');
-          server.close();
-          resolve(tokens);
-        } catch (err) {
-          res.writeHead(500);
-          res.end('Token exchange failed');
-          server.close();
-          reject(err);
+          resolve(JSON.parse(body));
+        } catch (e) {
+          resolve(body);
         }
-      }
+      });
     });
     
-    server.listen(REDIRECT_PORT, () => {
-      console.log(`\n🔐 Waiting for OAuth callback on port ${REDIRECT_PORT}...`);
-    });
-    
-    server.on('error', (err) => {
-      if (err.code === 'EADDRINUSE') {
-        reject(new Error(`Port ${REDIRECT_PORT} in use`));
-      } else {
-        reject(err);
-      }
-    });
-    
-    setTimeout(() => {
-      server.close();
-      reject(new Error('Login timed out'));
-    }, 5 * 60 * 1000);
+    req.on('error', reject);
+    req.write(postData);
+    req.end();
+  });
+}
+
+/**
+ * Refreshes the access token using refresh_token (pure API)
+ * Google OAuth2 Token Endpoint: https://oauth2.googleapis.com/token
+ */
+async function refreshAccessToken(credentials) {
+  const response = await httpsPost('https://oauth2.googleapis.com/token', {
+    client_id: credentials.client_id,
+    client_secret: credentials.client_secret,
+    refresh_token: credentials.refresh_token,
+    grant_type: 'refresh_token'
   });
   
-  if (!tokens.refresh_token) {
-    console.error('\n❌ No refresh token received. Revoke access at https://myaccount.google.com/permissions and retry.');
-    return null;
+  if (response.error) {
+    throw new Error(response.error_description || response.error);
   }
   
-  // Save credentials
-  const credentials = {
-    client_id: clientId,
-    client_secret: clientSecret,
-    refresh_token: tokens.refresh_token,
-    access_token: tokens.access_token,
-    expiry_date: tokens.expiry_date,
-    token_type: 'Bearer'
+  return {
+    access_token: response.access_token,
+    expires_in: response.expires_in,
+    token_type: response.token_type
   };
-  saveCredentials(credentials);
-  
-  console.log('\n✅ Login successful!\n');
-  return credentials;
 }
 
 /**
  * Retrieves a fresh OAuth2 access token
- * Automatically triggers login if no valid refresh token exists
+ * Uses the UI to get refresh token if not present
  */
 async function getFreshAccessToken() {
-  // Check cached token
+  // Check cached token (with 5 min buffer)
   const now = Date.now();
   if (cachedAccessToken && tokenExpiryTime > now + 5 * 60 * 1000) {
     return cachedAccessToken;
   }
   
-  let credentials = loadCredentials();
+  const credentials = loadCredentials();
   
-  // If no credentials or no refresh token, run login
+  // If no credentials or no refresh token, return null
+  // User must use the UI to authenticate
   if (!credentials?.refresh_token) {
-    credentials = await runLoginFlow();
-    if (!credentials?.refresh_token) return null;
+    console.error('[gemini_interceptor] No refresh token found. Please use the UI (ccr ui) to authenticate with Google.');
+    return null;
   }
   
   try {
-    const { UserRefreshClient } = require('google-auth-library');
-    const client = new UserRefreshClient(
-      credentials.client_id,
-      credentials.client_secret,
-      credentials.refresh_token
-    );
+    const tokens = await refreshAccessToken(credentials);
     
-    const { token, res } = await client.getAccessToken();
-    
-    if (!token) {
-      console.error('[gemini_interceptor] Token refresh failed, re-authenticating...');
-      credentials = await runLoginFlow();
-      if (!credentials) return null;
-      return getFreshAccessToken();
-    }
-    
-    // Cache token
-    cachedAccessToken = token;
-    tokenExpiryTime = res?.data?.expiry_date || (now + 3600 * 1000);
+    // Cache the token
+    cachedAccessToken = tokens.access_token;
+    tokenExpiryTime = now + (tokens.expires_in * 1000);
     
     // Update stored credentials
-    credentials.access_token = token;
+    credentials.access_token = tokens.access_token;
     credentials.expiry_date = tokenExpiryTime;
     saveCredentials(credentials);
     
-    return token;
+    return tokens.access_token;
   } catch (error) {
-    console.error('[gemini_interceptor] OAuth error:', error.message);
+    console.error('[gemini_interceptor] Token refresh failed:', error.message);
     
+    // If token is invalid, clear cached token
     if (error.message.includes('invalid_grant') || error.message.includes('revoked')) {
-      console.error('[gemini_interceptor] Token invalid, re-authenticating...');
-      credentials = await runLoginFlow();
-      if (!credentials) return null;
-      return getFreshAccessToken();
+      console.error('[gemini_interceptor] Refresh token is invalid. Please re-authenticate via UI (ccr ui).');
+      cachedAccessToken = null;
+      tokenExpiryTime = 0;
     }
     
     return null;
@@ -311,23 +170,28 @@ async function getFreshAccessToken() {
 class GeminiInterceptor {
   name = "gemini_interceptor";
   
-  // No endPoint - this runs as a provider transformer in the chain
-  
   constructor(options = {}) {
     this.options = options;
-    this.logger = null; // Will be set by TransformerService
+    this.logger = null;
   }
 
   /**
    * Intercept request AFTER Gemini transformer has processed it
-   * Called as part of the provider.transformer.use chain
-   * 
-   * @param {object} request - The Gemini-formatted request body
-   * @param {object} provider - The provider configuration
-   * @param {object} context - Request context containing req object
-   * @returns {object} Modified request with optional config
+   * request incoming ====== transformRequestIn ======> Google antigravity 
    */
+   
   async transformRequestIn(request, provider, context) {
+    // Log transformer input
+    if (this.logger) {
+      this.logger.info({
+        type: 'transformer_incoming_request',
+        transformer: this.name,
+        body: request,
+        url: context?.url || provider?.baseUrl || provider?.api_base_url || 'unknown',
+        headers: context?.headers || request?.headers || {}
+      }, `[${this.name}] Transformer input`);
+    }
+
     const config = {};
     
     // --- 1. OAUTH AUTHENTICATION ---
@@ -335,101 +199,91 @@ class GeminiInterceptor {
     
     if (token) {
       config.headers = {
-        'Authorization': `Bearer ${token}`,
-        // 'x-goog-api-key': undefined // Remove API key when using OAuth
+        "Authorization": `Bearer ${token}`,
+        "User-Agent": "antigravity/ windows/amd64",
+        "Content-Type": "application/json",
+        "Accept-Encoding": "gzip"
       };
       
       if (this.logger) {
-        this.logger.info('[gemini_interceptor] Using OAuth authentication');
+        this.logger.info(`[${this.name}] Using OAuth authentication`);
       }
     }
 
     // --- 2. CUSTOM ENDPOINT HANDLING ---
-    // If the provider's base URL is a complete endpoint (contains :streamGenerateContent or :generateContent),
-    // use it directly instead of constructing the URL from model name
     const baseUrl = provider.baseUrl || provider.api_base_url;
     if (baseUrl && (baseUrl.includes(':streamGenerateContent') || baseUrl.includes(':generateContent') || baseUrl.includes('v1internal'))) {
       config.url = new URL(baseUrl);
       
       if (this.logger) {
-        this.logger.info(`[gemini_interceptor] Using custom endpoint: ${baseUrl}`);
+        this.logger.info(`[${this.name}] Using custom endpoint: ${baseUrl}`);
       }
     }
 
-    // --- 2. THINKING BUDGET DETECTION ---
-    if (!request.generationConfig) {
-      request.generationConfig = {};
-    }
+    // // --- 3. THINKING BUDGET DETECTION ---
+    // if (!request.generationConfig) {
+    //   request.generationConfig = {};
+    // }
 
-    let thinkingBudget = null;
-    let includeThoughts = true;
+    // let thinkingBudget = null;
 
-    // Check A: Standard Google 'thinkingConfig' (if upstream transformer handled it)
-    if (request.generationConfig.thinkingConfig) {
-      thinkingBudget = request.generationConfig.thinkingConfig.thinkingBudget;
-      if (this.logger) {
-        this.logger.debug('[gemini_interceptor] Found thinkingConfig:', thinkingBudget);
-      }
-    } 
-    // Check B: Flat 'thinking_budget' (Common in some SDKs)
-    else if (request.generationConfig.thinking_budget) {
-      thinkingBudget = request.generationConfig.thinking_budget;
-      delete request.generationConfig.thinking_budget; // Clean up
-    }
-    // Check C: Anthropic 'thinking' format (if passed through raw)
-    // Claude sends: { thinking: { type: "enabled", budget_tokens: 16000 } }
-    else if (request.thinking && request.thinking.budget_tokens) {
-      thinkingBudget = request.thinking.budget_tokens;
-      delete request.thinking; // Clean up Anthropic field
-    }
+    // if (request.generationConfig.thinkingConfig) {
+    //   thinkingBudget = request.generationConfig.thinkingConfig.thinkingBudget;
+    // } else if (request.generationConfig.thinking_budget) {
+    //   thinkingBudget = request.generationConfig.thinking_budget;
+    //   delete request.generationConfig.thinking_budget;
+    // } else if (request.thinking && request.thinking.budget_tokens) {
+    //   thinkingBudget = request.thinking.budget_tokens;
+    //   delete request.thinking;
+    // }
 
-    // --- 3. APPLY THINKING CONFIGURATION ---
-    if (thinkingBudget) {
-      // Use the value from the API request
-      request.generationConfig.thinkingConfig = {
-        includeThoughts: includeThoughts,
-        thinkingBudget: parseInt(thinkingBudget)
-      };
-    } else {
-      // Fallback: Check options from config.json
-      const configBudget = this.options.thinking_budget || this.options.thinkingBudget;
-      request.generationConfig.thinkingConfig = {
-        includeThoughts: true,
-        thinkingBudget: configBudget ? parseInt(configBudget) : 1024
-      };
-    }
+    // // --- 4. APPLY THINKING CONFIGURATION ---
+    // if (thinkingBudget) {
+    //   request.generationConfig.thinkingConfig = {
+    //     includeThoughts: true,
+    //     thinkingBudget: parseInt(thinkingBudget)
+    //   };
+    // } else {
+    //   const configBudget = this.options.thinking_budget || this.options.thinkingBudget;
+    //   request.generationConfig.thinkingConfig = {
+    //     includeThoughts: true,
+    //     thinkingBudget: configBudget ? parseInt(configBudget) : 1024
+    //   };
+    // }
 
-    // --- 4. TOOL VALIDATION MODE ---
-    if (request.tools && request.tools.length > 0) {
-      if (!request.toolConfig) {
-        request.toolConfig = {};
-      }
-      if (!request.toolConfig.functionCallingConfig) {
-        request.toolConfig.functionCallingConfig = {};
-      }
-      request.toolConfig.functionCallingConfig.mode = "VALIDATED";
-      
-      if (this.logger) {
-        this.logger.debug('[gemini_interceptor] Enabled VALIDATED tool mode');
-      }
-    }
+    // // --- 5. TOOL VALIDATION MODE ---
+    // if (request.tools && request.tools.length > 0) {
+    //   if (!request.toolConfig) {
+    //     request.toolConfig = {};
+    //   }
+    //   if (!request.toolConfig.functionCallingConfig) {
+    //     request.toolConfig.functionCallingConfig = {};
+    //   }
+    //   request.toolConfig.functionCallingConfig.mode = "VALIDATED";
+    // }
 
-    // --- 5. ENVELOPE WRAPPING ---
-    const sessionId = `session-${uuidv4()}`;
-    const requestId = `req-${uuidv4()}`;
+    // --- 6. ENVELOPE WRAPPING ---
+    // const sessionId = `session-${uuidv4()}`;
+    // const requestId = `req-${uuidv4()}`;
     
     const wrappedBody = {
-      project: this.options.project || "majestic-spot-nc5ww",
-      requestId: requestId,
-      model: this.options.model || "claude-opus-4-5-thinking",
-      userAgent: this.options.userAgent || "antigravity",
-      requestType: this.options.requestType || "agent",
-      sessionId: sessionId,
+      // requestId: requestId,
+      model: this.options.model,
+      userAgent: this.options.userAgent,
+      requestType: this.options.requestType,
+      // sessionId: sessionId,
       request: request
     };
 
+    // Log transformer output
     if (this.logger) {
-      this.logger.info(`[gemini_interceptor] Wrapped request with sessionId: ${sessionId}`);
+      this.logger.info({
+        type: 'transformer_outgoing_request',
+        transformer: this.name,
+        body: wrappedBody,
+        url: config.url ? config.url.toString() : 'unknown',
+        headers: config.headers || {}
+      }, `[${this.name}] Transformer output`);
     }
 
     return {
@@ -440,25 +294,93 @@ class GeminiInterceptor {
 
   /**
    * Intercept response BEFORE it goes back through the transformer chain
-   * 
-   * @param {Response} response - The fetch Response object
-   * @param {object} context - Response context
-   * @returns {Response} Modified response
    */
   async transformResponseOut(response, context) {
-    // Pass through error responses unchanged
+    // Log transformer response input
+    if (this.logger) {
+      const headers = {};
+      response.headers.forEach((value, key) => {
+        headers[key] = value;
+      });
+      
+      this.logger.info({
+        type: 'transformer_incoming_response',
+        transformer: this.name,
+        status: response.status,
+        statusText: response.statusText,
+        url: response.url,
+        headers: headers
+      }, `[${this.name}] Transformer response input`);
+
+      // Async body logging (full content)
+      // Cloned so we don't consume the main response body
+      try {
+        const clone = response.clone();
+        clone.text().then(text => {
+          let body = text;
+          try {
+            // Try to parse as JSON first (common for non-stream blocks)
+            // For streams, this might be a long string of "data: ..." lines
+            if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+              body = JSON.parse(text);
+            }
+          } catch (e) {
+            // Keep as text if not valid JSON
+          }
+
+          this.logger.info({
+            type: 'transformer_incoming_response',
+            transformer: this.name,
+            body: body,
+            url: response.url,
+             // Add a distinct message to differentiate in logs if needed, 
+             // though the "body" field presence usually distinguishes it in the viewer
+            isFullContent: true 
+          }, `[${this.name}] Transformer response input (Full Content)`);
+        }).catch(err => {
+          this.logger.error({ err }, `[${this.name}] Failed to read cloned response body`);
+        });
+      } catch (e) {
+        this.logger.error({ err: e }, `[${this.name}] Failed to clone response for logging`);
+      }
+    }
+
     if (!response.ok) {
+      // Log pass-through for error responses
+      if (this.logger) {
+        this.logger.info({
+          type: 'transformer_outgoing_response',
+          transformer: this.name,
+          status: response.status,
+          statusText: response.statusText,
+          body: "Error response passed through" // We can't easily read the body here without consuming it or waiting for clone
+        }, `[${this.name}] Transformer response output (error pass-through)`);
+      }
       return response;
     }
 
     const contentType = response.headers.get('content-type') || "";
     
-    // Only transform streaming responses
+    // Non-streaming response
     if (!contentType.includes('text/event-stream')) {
-      // For non-streaming, try to unwrap the envelope
       try {
         const json = await response.json();
         const payload = json.response ? json.response : json;
+        
+        // Log transformer output
+        if (this.logger) {
+          const resHeaders = {};
+          if (response.headers && response.headers.forEach) {
+            response.headers.forEach((v, k) => resHeaders[k] = v);
+          }
+          this.logger.info({
+            type: 'transformer_outgoing_response',
+            transformer: this.name,
+            body: payload,
+            url: response.url,
+            headers: resHeaders
+          }, `[${this.name}] Transformer response output`);
+        }
         
         return new Response(JSON.stringify(payload), {
           headers: response.headers,
@@ -470,13 +392,28 @@ class GeminiInterceptor {
       }
     }
 
-    // Transform streaming response
+    // Streaming response
     const reader = response.body.getReader();
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
     let isThinking = false;
-
     const self = this;
+
+    // Log transformer output (streaming start)
+    if (this.logger) {
+      const resHeaders = {};
+      if (response.headers && response.headers.forEach) {
+         response.headers.forEach((v, k) => resHeaders[k] = v);
+      }
+      this.logger.info({
+        type: 'transformer_outgoing_response',
+        transformer: this.name,
+        stream: true,
+        message: "Streaming response started",
+        url: response.url,
+        headers: resHeaders
+      }, `[${this.name}] Transformer response output (stream)`);
+    }
     
     const newStream = new ReadableStream({
       async start(controller) {
@@ -487,7 +424,6 @@ class GeminiInterceptor {
             const { done, value } = await reader.read();
             
             if (done) {
-              // Process any remaining buffer
               if (buffer.trim()) {
                 controller.enqueue(encoder.encode(buffer + "\n"));
               }
@@ -496,13 +432,12 @@ class GeminiInterceptor {
             
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split("\n");
-            buffer = lines.pop() || ""; // Keep incomplete line in buffer
+            buffer = lines.pop() || "";
 
             for (const line of lines) {
               if (line.startsWith("data: ")) {
                 const dataStr = line.substring(6).trim();
                 
-                // Pass through [DONE] marker
                 if (dataStr === "[DONE]") {
                   controller.enqueue(encoder.encode(line + "\n"));
                   continue;
@@ -510,34 +445,38 @@ class GeminiInterceptor {
 
                 try {
                   const json = JSON.parse(dataStr);
-                  
-                  // Unwrap the envelope if present
                   const payload = json.response ? json.response : json;
                   const parts = payload.candidates?.[0]?.content?.parts || [];
                   
-                  // Handle thinking block formatting
                   if (parts.length > 0) {
                     const part = parts[0];
                     
                     if (part.thought) {
-                      // Entering thinking mode
                       if (!isThinking) {
                         isThinking = true;
                       }
                     } else if (isThinking && !part.thought && part.text) {
-                      // Exiting thinking mode - add spacing
                       part.text = "\n\n" + part.text;
                       isThinking = false;
                     }
                   }
 
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n`));
+                  const chunkPayload = `data: ${JSON.stringify(payload)}\n`;
+                  controller.enqueue(encoder.encode(chunkPayload));
+
+                  // Log outgoing chunk
+                  if (self.logger) {
+                     self.logger.info({
+                       type: 'transformer_outgoing_response',
+                       transformer: self.name,
+                       body: payload,
+                       chunk: true
+                     }, `[${self.name}] Transformer response output (chunk)`);
+                  }
                 } catch (e) {
-                  // JSON parse error - pass through original line
                   controller.enqueue(encoder.encode(line + "\n"));
                 }
               } else {
-                // Non-data lines (event:, etc.) - pass through
                 controller.enqueue(encoder.encode(line + "\n"));
               }
             }
