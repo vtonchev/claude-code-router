@@ -1,0 +1,36 @@
+{
+  "transformers": [
+    {
+      "path": "./plugins/antigravity.transformer.js",
+      "options": {
+        "project": "your-project-id",
+        "userAgent": "antigravity",
+        "requestType": "agent",
+        "defaultModel": "claude-sonnet-4-5-20250514",
+        "modelMapping": {
+          "claude-opus-4-5-20251101": "claude-opus-4-5-thinking",
+          "claude-opus-4-20250514": "claude-opus-4-5-thinking",
+          "claude-sonnet-4-5-20250514": "claude-sonnet-4-5-thinking",
+          "claude-sonnet-4-20250514": "claude-sonnet-4-5-thinking",
+          "claude-haiku-4-5-20251001": "gemini3-pro-high",
+          "claude-3-5-haiku-20241022": "gemini3-pro-high"
+        }
+      }
+    }
+  ],
+  "Providers": [
+    {
+      "name": "antigravity",
+      "api_base_url": "https://your-antigravity-endpoint.com/api/",
+      "api_key": "",
+      "models": ["claude-opus-4-5-thinking", "claude-sonnet-4-5-thinking", "gemini3-pro-high"],
+      "transformer": {
+        "use": ["antigravity"]
+      }
+    }
+  ],
+  "Router": {
+    "default": "antigravity,claude-sonnet-4-5-thinking",
+    "think": "antigravity,claude-opus-4-5-thinking"
+  }
+}

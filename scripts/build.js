@@ -9,11 +9,11 @@ console.log('Building Claude Code Router...');
 try {
   // Build the local llms package
   console.log('Building local llms package...');
-  if (!fs.existsSync('src/llms/node_modules')) {
+  if (!fs.existsSync('llms/node_modules')) {
     console.log('Installing LLMS dependencies...');
-    execSync('cd src/llms && pnpm install', { stdio: 'inherit' });
+    execSync('cd llms && pnpm install', { stdio: 'inherit' });
   }
-  execSync('cd src/llms && pnpm run build', { stdio: 'inherit' });
+  execSync('cd llms && pnpm run build', { stdio: 'inherit' });
 
   // Build the main CLI application
   console.log('Building CLI application...');

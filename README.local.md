@@ -1,0 +1,1 @@
+- node dist/cli.js code - loads a claude code client

@@ -7,10 +7,21 @@ import { readdirSync, statSync, readFileSync, writeFileSync, existsSync, unlinkS
 import { homedir } from "os";
 import { calculateTokenCount } from "./utils/router";
 import diagnostics_channel from "diagnostics_channel";
-import { Agent, setGlobalDispatcher, Dispatcher } from "undici";
+import { Agent, setGlobalDispatcher, Dispatcher, RetryAgent } from "undici";
 
 // Global logger bridged to Fastify logger
 let appLogger: any = console;
+
+// Retry configuration for rate limits (429) and server errors (503)
+const RETRY_CONFIG = {
+  maxRetries: 5,
+  minTimeout: 500,    // Start with 500ms
+  maxTimeout: 10000,  // Max 10 seconds
+  timeoutFactor: 2,   // Exponential backoff factor
+  retryAfter: true,   // Respect Retry-After header
+  statusCodes: [429, 503, 502, 500], // Status codes to retry
+  errorCodes: ['ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT'],
+};
 
 // Create a custom dispatcher that intercepts responses
 class LoggingDispatcher extends Agent {
@@ -20,13 +31,13 @@ class LoggingDispatcher extends Agent {
 
     // Wrap onHeaders to log response status
     handler.onHeaders = (statusCode: any, headers: any, resume: any, statusText: any) => {
-      appLogger.info({
-        type: 'incoming_response',
-        status: statusCode,
-        statusText: statusText || '',
-        headers: headers,
-        url: typeof options.origin === 'string' && typeof options.path === 'string' ? `${options.origin}${options.path}` : (options.origin ? String(options.origin) : '')
-      }, 'Incoming Response (external API)');
+      // appLogger.info({
+      //   type: 'incoming_response',
+      //   status: statusCode,
+      //   statusText: statusText || '',
+      //   headers: headers,
+      //   url: typeof options.origin === 'string' && typeof options.path === 'string' ? `${options.origin}${options.path}` : (options.origin ? String(options.origin) : '')
+      // }, 'Incoming Response (external API)');
       return originalOnHeaders!.call(handler, statusCode, headers, resume, statusText);
     };
 
@@ -63,11 +74,11 @@ class LoggingDispatcher extends Agent {
         }
 
         if (text.trim()) {
-          appLogger.info({
-            type: 'incoming_response_body',
-            body: text,
-            url: typeof options.origin === 'string' && typeof options.path === 'string' ? `${options.origin}${options.path}` : (options.origin ? String(options.origin) : '')
-          }, 'Incoming Response Body Chunk');
+          // appLogger.info({
+          //   type: 'incoming_response_body',
+          //   body: text,
+          //   url: typeof options.origin === 'string' && typeof options.path === 'string' ? `${options.origin}${options.path}` : (options.origin ? String(options.origin) : '')
+          // }, 'Incoming Response Body Chunk');
         }
       } catch (e) { /* ignore */ }
       return originalOnData!.call(handler, chunk);
@@ -88,7 +99,21 @@ export const createServer = (config: any): Server => {
   }
 
   // Set the global dispatcher AFTER logger is bridged so external API logs go to file
-  setGlobalDispatcher(new LoggingDispatcher());
+  // NOTE: RetryAgent is DISABLED because it doesn't work with SSE streaming responses.
+  // The retry mechanism tries to buffer/replay the request which fails for long-running streams.
+  // If retry logic is needed, it should be implemented at the application level.
+  const loggingAgent = new LoggingDispatcher();
+  // const retryAgent = new RetryAgent(loggingAgent, {
+  //   maxRetries: RETRY_CONFIG.maxRetries,
+  //   minTimeout: RETRY_CONFIG.minTimeout,
+  //   maxTimeout: RETRY_CONFIG.maxTimeout,
+  //   timeoutFactor: RETRY_CONFIG.timeoutFactor,
+  //   retryAfter: RETRY_CONFIG.retryAfter,
+  //   statusCodes: RETRY_CONFIG.statusCodes,
+  //   errorCodes: RETRY_CONFIG.errorCodes,
+  // });
+  setGlobalDispatcher(loggingAgent); // Use loggingAgent directly, not retryAgent
+  appLogger.info('[Network] Global dispatcher configured (retry disabled for streaming compatibility)');
 
   server.app.post("/v1/messages/count_tokens", async (req, reply) => {
     const { messages, tools, system } = req.body;
@@ -575,126 +600,6 @@ export const createServer = (config: any): Server => {
     } catch (error) {
       console.error("Failed to start OAuth:", error);
       reply.status(500).send({ error: "Failed to start OAuth: " + (error as Error).message });
-    }
-  });
-
-  // ===================== INCOMING TRAFFIC LOGGING =====================
-
-  // Log Incoming Request (use preHandler to ensure body is parsed if available)
-  server.app.addHook("preHandler", async (req: any, reply: any) => {
-    try {
-      req.log.info({
-        type: 'incoming_request',
-        method: req.method,
-        url: req.url,
-        body: req.body,
-        headers: req.headers
-      }, `Incoming Request: ${req.method} ${req.url}`);
-    } catch (err) {
-      server.logger.error("Error logging incoming request:", err);
-    }
-  });
-
-  // Log Outgoing Response (Server -> Client)
-  server.app.addHook("onSend", (req: any, reply: any, payload: any, done: any) => {
-    try {
-      // SKIP logging for log/UI endpoints to prevent recursion/noise
-      if (req.url.startsWith('/api/logs') || req.url.startsWith('/ui/') || req.url.startsWith('/favicon.ico')) {
-        done(null, payload);
-        return;
-      }
-
-      let bodyStr = '';
-      if (typeof payload === 'string' && payload.trim()) {
-        bodyStr = payload;
-      } else if (Buffer.isBuffer(payload)) {
-        bodyStr = payload.toString('utf8');
-      }
-
-      if (bodyStr.trim()) {
-        req.log.info({
-          type: 'outgoing_response',
-          body: bodyStr,
-          url: req.url,
-          headers: req.headers
-        }, `Outgoing Response`);
-      }
-    } catch (err) {
-      // ignore
-    }
-    done(null, payload);
-  });
-
-  // ===================== OUTGOING TRAFFIC LOGGING (Undici) =====================
-
-  diagnostics_channel.subscribe("undici:request:create", (message) => {
-    const { request }: any = message;
-    try {
-      appLogger.info({
-        type: 'outgoing_request',
-        method: request.method,
-        url: `${request.origin}${request.path}`,
-        headers: request.headers
-      }, `Outgoing Request: ${request.method} ${request.origin}${request.path}`);
-
-      // Log Body
-      if (request.body) {
-        // Check if body is a string or buffer we can print
-        if (typeof request.body === 'string') {
-          appLogger.info({
-            type: 'outgoing_request_body',
-            body: request.body,
-            url: `${request.origin}${request.path}`,
-            headers: request.headers
-          }, 'Outgoing Request Body');
-        } else if (Buffer.isBuffer(request.body)) {
-          const bodyStr = request.body.toString('utf8');
-          appLogger.info({
-            type: 'outgoing_request_body',
-            body: bodyStr,
-            url: `${request.origin}${request.path}`,
-            headers: request.headers
-          }, 'Outgoing Request Body');
-        } else if (
-          request.body &&
-          (Symbol.asyncIterator in request.body || Symbol.iterator in request.body)
-        ) {
-          appLogger.info({}, "Outgoing Request Body (Stream detected - intercepting chunks...)");
-
-          // Wrap the body stream to log chunks
-          const originalBody = request.body;
-          request.body = (async function* () {
-            for await (const chunk of originalBody) {
-              try {
-                let stringChunk;
-                if (typeof chunk === 'string') {
-                  stringChunk = chunk;
-                } else {
-                  stringChunk = Buffer.from(chunk).toString('utf8');
-                }
-                if (stringChunk.trim()) {
-                  appLogger.info({
-                    type: 'outgoing_request_body',
-                    headers: request.headers,
-                    body: stringChunk,
-                    url: `${request.origin}${request.path}`
-                  }, 'Outgoing Request Body Chunk');
-                }
-              } catch (e) { /* ignore logging errors */ }
-              yield chunk;
-            }
-          })();
-        } else {
-          appLogger.info({
-            type: 'outgoing_request_body',
-            headers: request.headers,
-            body: request.body,
-            url: `${request.origin}${request.path}`
-          }, 'Outgoing Request Body (Complex Object)');
-        }
-      }
-    } catch (err) {
-      appLogger.error("Error logging request:", err);
     }
   });
 

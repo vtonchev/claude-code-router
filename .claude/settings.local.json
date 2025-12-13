@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(pkill:*)",
+      "WebSearch",
+      "WebFetch(domain:www.engadget.com)",
+      "WebFetch(domain:github.com)"
+    ]
+  },
+  "outputStyle": "Explanatory"
+}

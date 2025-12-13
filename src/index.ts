@@ -15,9 +15,9 @@ import { CONFIG_FILE } from "./constants";
 import { createStream } from 'rotating-file-stream';
 import { HOME_DIR } from "./constants";
 import { sessionUsageCache } from "./utils/cache";
-import {SSEParserTransform} from "./utils/SSEParser.transform";
-import {SSESerializerTransform} from "./utils/SSESerializer.transform";
-import {rewriteStream} from "./utils/rewriteStream";
+import { SSEParserTransform } from "./utils/SSEParser.transform";
+import { SSESerializerTransform } from "./utils/SSESerializer.transform";
+import { rewriteStream } from "./utils/rewriteStream";
 import JSON5 from "json5";
 import { IAgent } from "./agents/type";
 import agentsManager from "./agents";
@@ -111,15 +111,15 @@ async function run(options: RunOptions = {}) {
   const loggerConfig =
     config.LOG !== false
       ? {
-          level: config.LOG_LEVEL || "debug",
-          stream: createStream(generator, {
-            path: HOME_DIR,
-            maxFiles: 3,
-            interval: "1d",
-            compress: false,
-            maxSize: "50M"
-          }),
-        }
+        level: config.LOG_LEVEL || "debug",
+        stream: createStream(generator, {
+          path: HOME_DIR,
+          maxFiles: 3,
+          interval: "1d",
+          compress: false,
+          maxSize: "50M"
+        }),
+      }
       : false;
 
   const server = createServer({
@@ -140,14 +140,17 @@ async function run(options: RunOptions = {}) {
 
   // Add global error handlers to prevent the service from crashing
   process.on("uncaughtException", (err) => {
+    console.log(err)
     server.logger.error("Uncaught exception:", err);
   });
 
   process.on("unhandledRejection", (reason, promise) => {
+    console.log(reason)
     server.logger.error("Unhandled rejection at:", promise, "reason:", reason);
   });
   // Add async preHandler hook for authentication
   server.addHook("preHandler", async (req, reply) => {
+    console.log("[preHandler] 1")
     return new Promise((resolve, reject) => {
       const done = (err?: Error) => {
         if (err) reject(err);
@@ -158,18 +161,19 @@ async function run(options: RunOptions = {}) {
     });
   });
   server.addHook("preHandler", async (req, reply) => {
+    console.log("[preHandler] 2")
     if (req.url.startsWith("/v1/messages") && !req.url.startsWith("/v1/messages/count_tokens")) {
       const useAgents = []
 
       for (const agent of agentsManager.getAllAgents()) {
         if (agent.shouldHandle(req, config)) {
-          // 设置agent标识
+          // Set agent identifier
           useAgents.push(agent.name)
 
-          // change request body
+          // Change request body
           agent.reqHandler(req, config);
 
-          // append agent tools
+          // Append agent tools
           if (agent.tools.size) {
             if (!req.body?.tools?.length) {
               req.body.tools = []
@@ -198,6 +202,8 @@ async function run(options: RunOptions = {}) {
     event.emit('onError', request, reply, error);
   })
   server.addHook("onSend", (req, reply, payload, done) => {
+    console.log("[onSend] 1")
+    console.log(payload)
     if (req.sessionId && req.url.startsWith("/v1/messages") && !req.url.startsWith("/v1/messages/count_tokens")) {
       if (payload instanceof ReadableStream) {
         if (req.agents) {
@@ -210,10 +216,10 @@ async function run(options: RunOptions = {}) {
           let currentToolId = ''
           const toolMessages: any[] = []
           const assistantMessages: any[] = []
-          // 存储Anthropic格式的消息体，区分文本和工具类型
+          // Store Anthropic-formatted message bodies, distinguishing text and tool types
           return done(null, rewriteStream(eventStream, async (data, controller) => {
             try {
-              // 检测工具调用开始
+              // Detect start of tool call
               if (data.event === 'content_block_start' && data?.data?.content_block?.name) {
                 const agent = req.agents.find((name: string) => agentsManager.getAgent(name)?.tools.get(data.data.content_block.name))
                 if (agent) {
@@ -225,13 +231,13 @@ async function run(options: RunOptions = {}) {
                 }
               }
 
-              // 收集工具参数
+              // Collect tool arguments
               if (currentToolIndex > -1 && data.data.index === currentToolIndex && data.data?.delta?.type === 'input_json_delta') {
                 currentToolArgs += data.data?.delta?.partial_json;
                 return undefined;
               }
 
-              // 工具调用完成，处理agent调用
+              // Tool call completed, process agent call
               if (currentToolIndex > -1 && data.data.index === currentToolIndex && data.data.type === 'content_block_stop') {
                 try {
                   const args = JSON5.parse(currentToolArgs);
@@ -285,7 +291,7 @@ async function run(options: RunOptions = {}) {
                 const reader = stream.getReader()
                 while (true) {
                   try {
-                    const {value, done} = await reader.read();
+                    const { value, done } = await reader.read();
                     if (done) {
                       break;
                     }
@@ -293,15 +299,15 @@ async function run(options: RunOptions = {}) {
                       continue
                     }
 
-                    // 检查流是否仍然可写
+                    // Check if stream is still writable
                     if (!controller.desiredSize) {
                       break;
                     }
 
                     controller.enqueue(value)
-                  }catch (readError: any) {
+                  } catch (readError: any) {
                     if (readError.name === 'AbortError' || readError.code === 'ERR_STREAM_PREMATURE_CLOSE') {
-                      abortController.abort(); // 中止所有相关操作
+                      abortController.abort(); // Abort all related operations
                       break;
                     }
                     throw readError;
@@ -311,16 +317,16 @@ async function run(options: RunOptions = {}) {
                 return undefined
               }
               return data
-            }catch (error: any) {
+            } catch (error: any) {
               console.error('Unexpected error in stream processing:', error);
 
-              // 处理流提前关闭的错误
+              // Handle premature stream close error
               if (error.code === 'ERR_STREAM_PREMATURE_CLOSE') {
                 abortController.abort();
                 return undefined;
               }
 
-              // 其他错误仍然抛出
+              // Other errors are still thrown
               throw error;
             }
           }).pipeThrough(new SSESerializerTransform()))
@@ -342,7 +348,7 @@ async function run(options: RunOptions = {}) {
               try {
                 const message = JSON.parse(str);
                 sessionUsageCache.put(req.sessionId, message.usage);
-              } catch {}
+              } catch { }
             }
           } catch (readError: any) {
             if (readError.name === 'AbortError' || readError.code === 'ERR_STREAM_PREMATURE_CLOSE') {
@@ -358,7 +364,7 @@ async function run(options: RunOptions = {}) {
         return done(null, originalStream)
       }
       sessionUsageCache.put(req.sessionId, payload.usage);
-      if (typeof payload ==='object') {
+      if (typeof payload === 'object') {
         if (payload.error) {
           return done(payload.error, null)
         } else {
@@ -366,12 +372,13 @@ async function run(options: RunOptions = {}) {
         }
       }
     }
-    if (typeof payload ==='object' && payload.error) {
+    if (typeof payload === 'object' && payload.error) {
       return done(payload.error, null)
     }
     done(null, payload)
   });
   server.addHook("onSend", async (req, reply, payload) => {
+    console.log("[onSend] 2")
     event.emit('onSend', req, reply, payload);
     return payload;
   })

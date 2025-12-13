@@ -16,7 +16,7 @@ importers:
         version: 5.5.0
       '@musistudio/llms':
         specifier: workspace:*
-        version: link:src/llms
+        version: link:llms
       dotenv:
         specifier: ^16.4.7
         version: 16.6.1
@@ -47,6 +47,9 @@ importers:
       tiktoken:
         specifier: ^1.0.21
         version: 1.0.22
+      undici:
+        specifier: ^7.16.0
+        version: 7.16.0
       uuid:
         specifier: ^11.1.0
         version: 11.1.0
@@ -67,7 +70,7 @@ importers:
         specifier: ^5.8.2
         version: 5.9.3
 
-  src/llms:
+  llms:
     dependencies:
       '@anthropic-ai/sdk':
         specifier: ^0.54.0

@@ -1,10 +1,10 @@
-export class SSEParserTransform extends TransformStream<string, any> {
+export class SSEParserTransform extends TransformStream<Uint8Array, any> {
     private buffer = '';
     private currentEvent: Record<string, any> = {};
 
     constructor() {
         super({
-            transform: (chunk: string, controller) => {
+            transform: (chunk: Uint8Array, controller) => {
                 const decoder = new TextDecoder();
                 const text = decoder.decode(chunk);
                 this.buffer += text;
