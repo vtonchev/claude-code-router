@@ -1,0 +1,484 @@
+url: https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:generateContent
+
+There is no streaming support for this endpoint.
+
+Request:
+{
+  "project": "majestic-spot-nc5ww",
+  "request": {
+    "contents": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "ubuntu add certificate authority detailed guide troubleshooting"
+          }
+        ]
+      }
+    ],
+    "systemInstruction": {
+      "role": "user",
+      "parts": [
+        {
+          "text": "You are a search engine bot. You will be given a query from a user. Your task is to search the web for relevant information that will help the user. You MUST perform a web search. Do not respond or interact with the user, please respond as if they typed the query into a search bar."
+        }
+      ]
+    },
+    "tools": [
+      {
+        "googleSearch": {
+          "enhancedContent": {
+            "imageSearch": {
+              "maxResultCount": 5
+            }
+          }
+        }
+      }
+    ],
+    "generationConfig": {
+      "candidateCount": 1
+    }
+  },
+  "model": "gemini-2.5-flash",
+  "requestType": "web_search"
+}
+
+Response:
+{
+  "response": {
+    "candidates": [
+      {
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Adding a Certificate Authority (CA) to your Ubuntu system ensures that applications and services trust certificates issued by that CA, which is crucial for secure communication, especially in enterprise environments or when dealing with self-signed certificates. This guide provides a detailed walkthrough, including common troubleshooting steps.\n\n### Prerequisites\n\nBefore you begin, ensure you have:\n*   A user account with `sudo` privileges.\n*   The CA certificate file you wish to add. This file should ideally be in **PEM format** (text-based, starting with `-----BEGIN CERTIFICATE-----` and ending with `-----END CERTIFICATE-----`) and have a `.crt` extension.\n\n### Step-by-Step Guide to Adding a CA Certificate\n\n**1. Convert Certificate Format (if necessary)**\nIf your certificate is not in PEM format or does not have a `.crt` extension (e.g., it's a `.cer` file in DER format), you'll need to convert it first.\nTo convert a DER-encoded `.cer` file to PEM `.crt` format:\n"
+            },
+            {
+              "text": "```bash\nopenssl x509 -inform DER -in certificate.cer -out certificate.crt\n```"
+            },
+            {
+              "text": "\n\n\n**2. Install the `ca-certificates` Package**\nThis package is usually installed by default, but it's good to ensure its presence.\n"
+            },
+            {
+              "text": "```bash\nsudo apt update\nsudo apt install ca-certificates\n```"
+            },
+            {
+              "text": "\n\n\n**3. Copy the CA Certificate to the Trust Store Directory**\nUbuntu's system-wide trust store for local CA certificates is located at `/usr/local/share/ca-certificates/`. It's a good practice to create a dedicated subdirectory for your custom CA to keep things organized.\n\nCreate a directory (e.g., `my_custom_ca`):\n"
+            },
+            {
+              "text": "```bash\nsudo mkdir -p /usr/local/share/ca-certificates/my_custom_ca\n```"
+            },
+            {
+              "text": "\n\nCopy your `.crt` file into this new directory:\n"
+            },
+            {
+              "text": "```bash\nsudo cp /path/to/your/certificate.crt /usr/local/share/ca-certificates/my_custom_ca/\n```"
+            },
+            {
+              "text": "\nEnsure the file has the `.crt` extension.\n\n**4. Update the System's CA Trust Store**\nAfter placing the certificate, you need to update the system's CA certificate bundle. This command reads the certificates from `/usr/local/share/ca-certificates/` and generates `ca-certificates.crt` in `/etc/ssl/certs/`.\n"
+            },
+            {
+              "text": "```bash\nsudo update-ca-certificates\n```"
+            },
+            {
+              "text": "\nYou should see output indicating that certificates were added. For example, \"1 added, 0 removed\".\n\n**5. Verify the Certificate Installation**\nYou can verify the installation using several methods:\n\n*   **Check for the certificate file:**\n    "
+            },
+            {
+              "text": "```bash\n    ls /etc/ssl/certs/ | grep your_certificate_name.pem\n    ```"
+            },
+            {
+              "text": "\n    (Note: `update-ca-certificates` converts `.crt` files to `.pem` symlinks in `/etc/ssl/certs`).\n\n*   **Inspect the bundled certificates:**\n    "
+            },
+            {
+              "text": "```bash\n    sudo cat /etc/ssl/certs/ca-certificates.crt | grep \"your_certificate_subject_or_issuer_details\"\n    ```"
+            },
+            {
+              "text": "\n    You can also search for unique strings from your certificate.\n\n*   **Test with `openssl s_client` (for servers using the CA):**\n    If the CA certifies a server you're trying to connect to, you can test the trust chain:\n    "
+            },
+            {
+              "text": "```bash\n    openssl s_client -connect your_server.com:443 -CApath /etc/ssl/certs\n    ```"
+            },
+            {
+              "text": "\n    Look for `Verify return code: 0 (ok)` at the end of the output, which indicates a successful trust verification.\n\n*   **Test with `curl`:**\n    If you were previously encountering `curl` errors with `--insecure` or `-k`, try accessing the resource without those options.\n    "
+            },
+            {
+              "text": "```bash\n    curl https://your_secure_resource\n    ```"
+            },
+            {
+              "text": "\n    If it works without errors, the CA is trusted.\n\n### Adding a CA Certificate to Firefox\n\nFirefox maintains its own certificate store separate from the operating system's.\n\n1.  **Open Firefox Certificate Manager:**\n    *   Launch Firefox.\n    *   Go to `Settings` (hamburger menu -\u003e Settings).\n    *   Navigate to `Privacy & Security`.\n    *   Scroll down to the `Certificates` section and click `View Certificates...`.\n2.  **Import the Certificate:**\n    *   In the Certificate Manager window, go to the `Authorities` tab.\n    *   Click the `Import...` button.\n    *   Browse to and select your `.crt` file.\n    *   When prompted, check the appropriate trust options, such as \"Trust this CA to identify websites.\"\n    *   Click `OK` to save the changes.\n\n### Troubleshooting Common Issues\n\n*   **Certificate Not Recognized After `update-ca-certificates`:**\n    *   **Incorrect Format/Extension:** Ensure your certificate is in PEM format and has a `.crt` extension. Files with other extensions (like `.pem` or `.cer`) might not be processed correctly by `update-ca-certificates` unless converted or explicitly listed in `/etc/ca-certificates.conf`.\n    *   **Incorrect Directory:** Double-check that the `.crt` file was copied to `/usr/local/share/ca-certificates/` (or a subdirectory within it).\n    *   **Permissions:** Verify that the certificate file and its parent directories have appropriate read permissions for the `update-ca-certificates` script (e.g., 644 for files, 755 for directories).\n    *   **Caches:** Some applications might cache certificate information. Restarting the application or even the system can sometimes resolve this.\n\n*   **Applications Still Don't Trust the Certificate:**\n    *   **Application-Specific Trust Stores:** Many applications (e.g., Java applications, some older versions of Chrome, or specific software) do not rely on the system-wide trust store and manage their own. You will need to add the CA certificate to their specific trust stores. For example, for Java, you might use `keytool`. For Chrome, while modern versions often use the system store via `p11-kit`, older versions or specific configurations might require manual import or specific tools like `certutil`.\n    *   **Restart Services:** If you're configuring a server application (like Apache or Nginx), you must restart its service for it to pick up the new CA certificates.\n    *   **Intermediate Certificates:** If your CA certificate is an intermediate CA, you might need to ensure the full certificate chain (including the root CA) is correctly provided and trusted.\n\n*   **OpenSSL Version Issues:**\n    *   Specific OpenSSL versions might have known bugs or different behaviors. If you encounter unexpected errors, check the OpenSSL version on your Ubuntu system and consult relevant documentation or forums for known issues.\n\n*   **Removing a CA Certificate:**\n    If you need to remove a previously added CA certificate:\n    1.  Delete the `.crt` file from `/usr/local/share/ca-certificates/my_custom_ca/`.\n    2.  Run `sudo update-ca-certificates --fresh`. This will re-evaluate the certificates in the directory and remove any that are no longer present."
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "groundingMetadata": {
+          "webSearchQueries": [
+            "ubuntu install custom CA certificate troubleshooting",
+            "ubuntu add certificate authority detailed guide",
+            "ubuntu trust CA certificate command line",
+            "how to add a certificate authority in ubuntu with troubleshooting",
+            "ubuntu add root CA to system trust store"
+          ],
+          "searchEntryPoint": {
+            "renderedContent": "\u003cstyle\u003e\n.container {\n  align-items: center;\n  border-radius: 8px;\n  display: flex;\n  font-family: Google Sans, Roboto, sans-serif;\n  font-size: 14px;\n  line-height: 20px;\n  padding: 8px 12px;\n}\n.chip {\n  display: inline-block;\n  border: solid 1px;\n  border-radius: 16px;\n  min-width: 14px;\n  padding: 5px 16px;\n  text-align: center;\n  user-select: none;\n  margin: 0 8px;\n  -webkit-tap-highlight-color: transparent;\n}\n.carousel {\n  overflow: auto;\n  scrollbar-width: none;\n  white-space: nowrap;\n  margin-right: -12px;\n}\n.headline {\n  display: flex;\n  margin-right: 4px;\n}\n.gradient-container {\n  position: relative;\n}\n.gradient {\n  position: absolute;\n  transform: translate(3px, -9px);\n  height: 36px;\n  width: 9px;\n}\n@media (prefers-color-scheme: light) {\n  .container {\n    background-color: #fafafa;\n    box-shadow: 0 0 0 1px #0000000f;\n  }\n  .headline-label {\n    color: #1f1f1f;\n  }\n  .chip {\n    background-color: #ffffff;\n    border-color: #d2d2d2;\n    color: #5e5e5e;\n    text-decoration: none;\n  }\n  .chip:hover {\n    background-color: #f2f2f2;\n  }\n  .chip:focus {\n    background-color: #f2f2f2;\n  }\n  .chip:active {\n    background-color: #d8d8d8;\n    border-color: #b6b6b6;\n  }\n  .logo-dark {\n    display: none;\n  }\n  .gradient {\n    background: linear-gradient(90deg, #fafafa 15%, #fafafa00 100%);\n  }\n}\n@media (prefers-color-scheme: dark) {\n  .container {\n    background-color: #1f1f1f;\n    box-shadow: 0 0 0 1px #ffffff26;\n  }\n  .headline-label {\n    color: #fff;\n  }\n  .chip {\n    background-color: #2c2c2c;\n    border-color: #3c4043;\n    color: #fff;\n    text-decoration: none;\n  }\n  .chip:hover {\n    background-color: #353536;\n  }\n  .chip:focus {\n    background-color: #353536;\n  }\n  .chip:active {\n    background-color: #464849;\n    border-color: #53575b;\n  }\n  .logo-light {\n    display: none;\n  }\n  .gradient {\n    background: linear-gradient(90deg, #1f1f1f 15%, #1f1f1f00 100%);\n  }\n}\n\u003c/style\u003e\n\u003cdiv class=\"container\"\u003e\n  \u003cdiv class=\"headline\"\u003e\n    \u003csvg class=\"logo-light\" width=\"18\" height=\"18\" viewBox=\"9 9 35 35\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"\u003e\n      \u003cpath fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M42.8622 27.0064C42.8622 25.7839 42.7525 24.6084 42.5487 23.4799H26.3109V30.1568H35.5897C35.1821 32.3041 33.9596 34.1222 32.1258 35.3448V39.6864H37.7213C40.9814 36.677 42.8622 32.2571 42.8622 27.0064V27.0064Z\" fill=\"#4285F4\"/\u003e\n      \u003cpath fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M26.3109 43.8555C30.9659 43.8555 34.8687 42.3195 37.7213 39.6863L32.1258 35.3447C30.5898 36.3792 28.6306 37.0061 26.3109 37.0061C21.8282 37.0061 18.0195 33.9811 16.6559 29.906H10.9194V34.3573C13.7563 39.9841 19.5712 43.8555 26.3109 43.8555V43.8555Z\" fill=\"#34A853\"/\u003e\n      \u003cpath fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M16.6559 29.8904C16.3111 28.8559 16.1074 27.7588 16.1074 26.6146C16.1074 25.4704 16.3111 24.3733 16.6559 23.3388V18.8875H10.9194C9.74388 21.2072 9.06992 23.8247 9.06992 26.6146C9.06992 29.4045 9.74388 32.022 10.9194 34.3417L15.3864 30.8621L16.6559 29.8904V29.8904Z\" fill=\"#FBBC05\"/\u003e\n      \u003cpath fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M26.3109 16.2386C28.85 16.2386 31.107 17.1164 32.9095 18.8091L37.8466 13.8719C34.853 11.082 30.9659 9.3736 26.3109 9.3736C19.5712 9.3736 13.7563 13.245 10.9194 18.8875L16.6559 23.3388C18.0195 19.2636 21.8282 16.2386 26.3109 16.2386V16.2386Z\" fill=\"#EA4335\"/\u003e\n    \u003c/svg\u003e\n    \u003csvg class=\"logo-dark\" width=\"18\" height=\"18\" viewBox=\"0 0 48 48\" xmlns=\"http://www.w3.org/2000/svg\"\u003e\n      \u003ccircle cx=\"24\" cy=\"23\" fill=\"#FFF\" r=\"22\"/\u003e\n      \u003cpath d=\"M33.76 34.26c2.75-2.56 4.49-6.37 4.49-11.26 0-.89-.08-1.84-.29-3H24.01v5.99h8.03c-.4 2.02-1.5 3.56-3.07 4.56v.75l3.91 2.97h.88z\" fill=\"#4285F4\"/\u003e\n      \u003cpath d=\"M15.58 25.77A8.845 8.845 0 0 0 24 31.86c1.92 0 3.62-.46 4.97-1.31l4.79 3.71C31.14 36.7 27.65 38 24 38c-5.93 0-11.01-3.4-13.45-8.36l.17-1.01 4.06-2.85h.8z\" fill=\"#34A853\"/\u003e\n      \u003cpath d=\"M15.59 20.21a8.864 8.864 0 0 0 0 5.58l-5.03 3.86c-.98-2-1.53-4.25-1.53-6.64 0-2.39.55-4.64 1.53-6.64l1-.22 3.81 2.98.22 1.08z\" fill=\"#FBBC05\"/\u003e\n      \u003cpath d=\"M24 14.14c2.11 0 4.02.75 5.52 1.98l4.36-4.36C31.22 9.43 27.81 8 24 8c-5.93 0-11.01 3.4-13.45 8.36l5.03 3.85A8.86 8.86 0 0 1 24 14.14z\" fill=\"#EA4335\"/\u003e\n    \u003c/svg\u003e\n    \u003cdiv class=\"gradient-container\"\u003e\u003cdiv class=\"gradient\"\u003e\u003c/div\u003e\u003c/div\u003e\n  \u003c/div\u003e\n  \u003cdiv class=\"carousel\"\u003e\n    \u003ca class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFk0_8SSOvhdgLNQmjXWXjtoRPvW7yevmsLqFM9-FEECBABq8DrK7YUN3tAR5T089A4TQi2Ftfk7tkQ53VN36rMyMQ8h657pTY6CldAEYSnmpE-ykyON7N-aMOn0SwgwMrjPqhZBepk46Ku2D8JTmffGhmKwQvM2spaa_2sf0C3w40llOwgouCSRGM8FxBPS6bGvHUKOtmp2rX_FvXoE8CKtV_vcu5qGEDAxA==\"\u003eubuntu add root CA to system trust store\u003c/a\u003e\n    \u003ca class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHA8jSe1hLRzA5QakS0oKFrLt5SowleB7oh1hbtwMRF6e-YRb1-I4KnN_znf8FJpAgofR2Mcc7YZDZBRBBPa3igC1WzjdvXEYte3ld5Ak8gNRjXXf_J16P1NLFbqwVdh_3ECUrkGlayFvzyfc21L7Z6WOfJXF-JOxjyL7f-IkKXKcBVW5WNr0-gHJ6D_ZuwloRm9SuWsxvyyzYPosOh596ONRZtjQ0a_S8DSA==\"\u003eubuntu trust CA certificate command line\u003c/a\u003e\n    \u003ca class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGjh0wmLYkE2W7AOBhOVUvVl9whD9dn7WnJ13E5bhdDNePSkAN7TngTdTPT1xn2juTHz8PTRSBurLFLG5pW9SuwSgw9KBi9FOXS-mCqxNClk2h97jDwDiMVnHC7rYvWUXeZWKztKIRmE5rUjug2powPWl0-WofUrf94SR3uRo_qu7Ac26LJDWGSH4xioixmviM_mhYGPNPyqRt8tj4rgn1lF3uWB3hj7WnZsuDFj4nEIOM=\"\u003eubuntu add certificate authority detailed guide\u003c/a\u003e\n    \u003ca class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFKAZjZy6YReoKO3JDzLWUS3xEapsv4wBKqHyiaxSc7bzJNsniFmFqlxyhuoKbFP_i1SB-4Nilffi7G8gWoLgHKFJIw4kyXZ-HAD-TzK_S5OZazSOHQVYuVGJQAB8mxA0rtOiessKYIZAmuNk6Gt-fCaggQ5tkSlcJY8QclRNYtJoGJtmIHBAm6vGkvbFJxHNLUzeWfKCvNPYvk5XmpR3GoXSODRp-J9QP4JvO1FMg6KYulvAMW2hs=\"\u003eubuntu install custom CA certificate troubleshooting\u003c/a\u003e\n    \u003ca class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFEdQ4HKCvbD4dvB4jbmcGCr7RdZUCNztWEhHA7kqmdraKblo4hTUk3saMEz4RZB03BencOveE22aHso3vVxupV6wTWEbIHB0xKCT6ZzsOS2ReM7r4xn8qoB46zuMM3vy3dTPc_5wCfJ0ERY8YYunfBbqgCSR04RhIBwuem6pZQBrnmYxAYBb2U7GpllFLAwCtnEzx6AZx4LKqwx2qKkzdxnbGIGfgMvXTwQD4hnduEy7Xo3jK3JelqaLwQhni4FsF9Hk_u\"\u003ehow to add a certificate authority in ubuntu with troubleshooting\u003c/a\u003e\n  \u003c/div\u003e\n\u003c/div\u003e\n"
+          },
+          "groundingChunks": [
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGTHUOwyMSZ9E5mVXAG6bCiy6uSgH_deAgSi2CFjrwIQga-C9Fd9eaubRh7GdNJjJrKhFHXkehmhn-Lj_4hSLqrUCoK4Ni0RkO4QMny3n_kP5a0jya4KhvPWyYuMNwLnyDwiunSUXcQyiwF12MQ89yzSe2wix0J2_kJA92H18EdBvUBKESKlxKmaiqDU7LAVQ3dkThwv6i7hsaspQ==",
+                "title": "hostzealot.com",
+                "domain": "hostzealot.com"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFX05MqIWtKizDlOhzZPZGMNODLHxEvs52qG497jE3ziHH5TZvG1mxfBezaxlO_5ObVbZ040iizCM8LlpKPrvctQXAQ6MgqMuGwPPVL6ACORxrbusF3skZH_Zziyw8en6WQ1H7Lfiv9kvvrdDWwPlMpxKH28HBr2GHjniPmdp9251Ha5YqNzVuiD4b4SW6FrwrKST8Y6CKffFh-i7wiAkPJt_qb",
+                "title": "ubuntu.com",
+                "domain": "ubuntu.com"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGPjWpg-zz3P8kQpc9CSP_18ioeOuHpqO4UpEM4Oc9l_O8KKG2EJ1rTdrSNClep1YUkcSxuNt24aiCvRrbCTNxqXpwK3-XVDPhJwsCOO92Ze-XHR4tM2QDm45FK8F9q_yo9Ji5acuiwcGr_h3Q3HTp4k_tUfvLS8Yu85C352GOFdF1isc2-4B6KD9uE3V4=",
+                "title": "askubuntu.com",
+                "domain": "askubuntu.com"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGekdB8_WIETx6f6jXvKUJcnw1kJW7vnSbY_e_cPA6ftZ--dzGtUb8r0PuBLi4aE5R-MnRrzeE3UIDfHz5j0anxGdlm5xzQwRSgd9V_eSTiU1JtcSD8Ss4PVgs9Z6G-FLZ5_bWZEoxlp1yBhcFyEa3SuBuUxZ9JFygiBr6yu9kQBKdDnQ==",
+                "title": "askubuntu.com",
+                "domain": "askubuntu.com"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHw4yMIz7mQnZdQ3wds5IRcXDAUkSpMQZzc8EPdroA_zJXSduvp54XHAQB29d-dYkr1cfUX2OxHoDA08M521tt5q9EZzdrOmYRMLJfRi9stEUoeD_iWkIYigsYJKvgrAwOEdF0EwwH9CDr1VT5KbUof-Ge_WtfHys5r106YY-8q5XvL_H0W47Ho45k18jWZuL6n-R_G",
+                "title": "superuser.com",
+                "domain": "superuser.com"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFjNWgWcRR3-CO7ooLIvETjLdsHZe0pjuWtc2vjd-GEsQOCcIGMNZTZcVXS80F9ApZTKfM2N5j7jRHKRySQQNhSAPtSVp5fXT0T0uUTCwgAttMF-K2ayJZUlZ-1djpaNl5SSyamrgt9nr3u1Ae3TAhxmNVU5DNolAfdWva9YA==",
+                "title": "eideasy.com",
+                "domain": "eideasy.com"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHD8QKYRowyoLMK1ZSB1ToCaossnLUgpilsG3m5Y7MFkiwNTMW8NXNGZ5EarahlSqxKnYMF6coQleCqmr7LH2G3PeuZ8MhW4HjtE17T19AtFROmEGZ1zesEdW1a3F2gpyDqJh_DpYGym7qqrbJvdFEgEpSl4XtXgaihGymNb2v79nw=",
+                "title": "support.tools",
+                "domain": "support.tools"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQH7__pCU-V4D-2HX8uy8T9eQzum--LGSBHiwJN5Z2LS9QFDou9joT-tohXGrTSxG3ygy6AbTdamITaDhH4Ed199VXRxC5krCfiRlEZsxkWTUkb_tOsJROZrVeM2zT1TpaEcxqi5ia97MHe-jCpm-pak8QV5yVi1-s4x6SXwiv_PL0o0rwNNok5iFz7leJE=",
+                "title": "medium.com",
+                "domain": "medium.com"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQF0e98kS9cPNLpMh-WKbNPcnzjm8d_7M6e8l7Ny9dMkxTmKAEMKM7OQH6DCGNvpme0rlqBV3siHSsFqKCzOehRVVFEVz962by8gn5LoUisgYij_Lkv56FsKoRtL-0VaoSncXuNNTQ==",
+                "title": "youtube.com",
+                "domain": "youtube.com"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQG0Elk0OYVtgNInyZjeQr4hBGyhFey2xPz5kYsSZJR_AZuR0_c3B0ZR0LpI7vLGMGFtouHXTtB3d7PCdosIk-ekqz-cjD1yAzKuF6BU7N-i303Mv07VvsGELsmAwUBtulvm00v7O4986niuzALVVASfhc5KLoPpwYFYF2irCbxDY2MNxjBScw==",
+                "title": "askubuntu.com",
+                "domain": "askubuntu.com"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHHqKVL926KieolhJhc7ue6L78HeUhmmMVSg6v6b2Nk8aE6wckbDbZH8pFDJrbFMV7-aNDRwaueYIoEtsJbj7vSo0cxYrhAe5yEeH9oyI24R31LV_4h5IadWe4R_tVSMvYzu_NUHt85afGZMjksB4pyEtix7b6eV_wNsMfLlCHRPFMxt2UmdG0vnubDe-a0aB80j6xXAQs6mn5sNyRs9xlfmhCM_2pfK-3e3Z4Gxd5_WryFPFiyR8vUWbmwtP6A3ddI37Kg93RqrO5t",
+                "title": "gfi.com",
+                "domain": "gfi.com"
+              }
+            }
+          ],
+          "groundingSupports": [
+            {
+              "segment": {
+                "startIndex": 651,
+                "endIndex": 666,
+                "text": "crt` extension."
+              },
+              "groundingChunkIndices": [
+                0,
+                1
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 1049,
+                "endIndex": 1057,
+                "text": "crt\n```\n"
+              },
+              "groundingChunkIndices": [
+                2,
+                3
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 1188,
+                "endIndex": 1249,
+                "text": "```bash\nsudo apt update\nsudo apt install ca-certificates\n```\n"
+              },
+              "groundingChunkIndices": [
+                0,
+                1,
+                3
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 1421,
+                "endIndex": 1521,
+                "text": "It's a good practice to create a dedicated subdirectory for your custom CA to keep things organized."
+              },
+              "groundingChunkIndices": [
+                0,
+                4,
+                2,
+                5,
+                6
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 1809,
+                "endIndex": 1824,
+                "text": "crt` extension."
+              },
+              "groundingChunkIndices": [
+                0,
+                4,
+                2
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 2062,
+                "endIndex": 2088,
+                "text": "crt` in `/etc/ssl/certs/`."
+              },
+              "groundingChunkIndices": [
+                0,
+                4,
+                1,
+                6,
+                7
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 2192,
+                "endIndex": 2226,
+                "text": "For example, \"1 added, 0 removed\"."
+              },
+              "groundingChunkIndices": [
+                0
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 2506,
+                "endIndex": 2541,
+                "text": "pem` symlinks in `/etc/ssl/certs`)."
+              },
+              "groundingChunkIndices": [
+                1
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 2641,
+                "endIndex": 2770,
+                "text": "crt | grep \"your_certificate_subject_or_issuer_details\"\n    ```\n    You can also search for unique strings from your certificate."
+              },
+              "groundingChunkIndices": [
+                4,
+                1
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 2772,
+                "endIndex": 3138,
+                "text": "*   **Test with `openssl s_client` (for servers using the CA):**\n    If the CA certifies a server you're trying to connect to, you can test the trust chain:\n    ```bash\n    openssl s_client -connect your_server.com:443 -CApath /etc/ssl/certs\n    ```\n    Look for `Verify return code: 0 (ok)` at the end of the output, which indicates a successful trust verification."
+              },
+              "groundingChunkIndices": [
+                4
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 3301,
+                "endIndex": 3405,
+                "text": "```bash\n    curl https://your_secure_resource\n    ```\n    If it works without errors, the CA is trusted."
+              },
+              "groundingChunkIndices": [
+                6,
+                7
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 3447,
+                "endIndex": 3528,
+                "text": "Firefox maintains its own certificate store separate from the operating system's."
+              },
+              "groundingChunkIndices": [
+                0,
+                8,
+                9
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 3697,
+                "endIndex": 3776,
+                "text": "*   Scroll down to the `Certificates` section and click `View Certificates...`."
+              },
+              "groundingChunkIndices": [
+                0,
+                8
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 3955,
+                "endIndex": 3965,
+                "text": "crt` file."
+              },
+              "groundingChunkIndices": [
+                0
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 3970,
+                "endIndex": 4111,
+                "text": "*   When prompted, check the appropriate trust options, such as \"Trust this CA to identify websites.\"\n    *   Click `OK` to save the changes."
+              },
+              "groundingChunkIndices": [
+                0
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 4500,
+                "endIndex": 4506,
+                "text": "conf`."
+              },
+              "groundingChunkIndices": [
+                4,
+                1,
+                2
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 4564,
+                "endIndex": 4654,
+                "text": "crt` file was copied to `/usr/local/share/ca-certificates/` (or a subdirectory within it)."
+              },
+              "groundingChunkIndices": [
+                4,
+                2
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 4659,
+                "endIndex": 4857,
+                "text": "*   **Permissions:** Verify that the certificate file and its parent directories have appropriate read permissions for the `update-ca-certificates` script (e.g., 644 for files, 755 for directories)."
+              },
+              "groundingChunkIndices": [
+                2,
+                5
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 5273,
+                "endIndex": 5344,
+                "text": "You will need to add the CA certificate to their specific trust stores."
+              },
+              "groundingChunkIndices": [
+                4
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 5393,
+                "endIndex": 5573,
+                "text": "For Chrome, while modern versions often use the system store via `p11-kit`, older versions or specific configurations might require manual import or specific tools like `certutil`."
+              },
+              "groundingChunkIndices": [
+                4
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 6052,
+                "endIndex": 6198,
+                "text": "If you encounter unexpected errors, check the OpenSSL version on your Ubuntu system and consult relevant documentation or forums for known issues."
+              },
+              "groundingChunkIndices": [
+                5
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 6390,
+                "endIndex": 6432,
+                "text": "Run `sudo update-ca-certificates --fresh`."
+              },
+              "groundingChunkIndices": [
+                10
+              ]
+            }
+          ],
+          "retrievalMetadata": {}
+        }
+      }
+    ],
+    "usageMetadata": {
+      "promptTokenCount": 69,
+      "candidatesTokenCount": 1589,
+      "totalTokenCount": 3014,
+      "trafficType": "ON_DEMAND",
+      "promptTokensDetails": [
+        {
+          "modality": "TEXT",
+          "tokenCount": 69
+        }
+      ],
+      "candidatesTokensDetails": [
+        {
+          "modality": "TEXT",
+          "tokenCount": 1589
+        }
+      ],
+      "toolUsePromptTokensDetails": [
+        {
+          "modality": "TEXT",
+          "tokenCount": 68
+        }
+      ],
+      "toolUsePromptTokenCount": 68,
+      "thoughtsTokenCount": 1288
+    },
+    "modelVersion": "gemini-2.5-flash",
+    "createTime": "2025-12-13T14:23:26.679990Z",
+    "responseId": "3nY9abbAKemUl7oP24zXyQk"
+  },
+  "traceId": "6c7f9132f66d13e1"
+}

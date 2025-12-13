@@ -221,6 +221,8 @@ export const router = async (req: any, _res: any, context: any) => {
     if (!model) {
       model = await getUseModel(req, tokenCount, config, lastMessageUsage);
     }
+    // Preserve original model from Claude Code for transformer to use
+    req.body.originalModel = req.body.model;
     req.body.model = model;
   } catch (error: any) {
     req.log.error(`Error in router middleware: ${error.message}`);

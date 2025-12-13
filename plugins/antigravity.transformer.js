@@ -158,7 +158,7 @@ function cleanParameters(params) {
     // Skip unsupported fields for Gemini/Vertex
     if (key === '$schema' || key === '$id' || key === '$ref' || key === '$defs' || 
         key === 'definitions' || key === '$comment' || key === 'examples' ||
-        key === 'default' || key === 'additionalProperties' || key === 'enum' ||
+        key === 'default' || key === 'additionalProperties' || //key === 'enum'
         key === 'minimum' || key === 'maximum' || key === 'minLength' || key === 'maxLength' ||
         key === 'minItems' || key === 'maxItems' || key === 'uniqueItems' ||
         key === 'pattern' || key === 'format' || key === 'nullable' || key === 'oneOf' ||
@@ -388,60 +388,56 @@ class AntigravityTransformer {
     // Handle both Anthropic format (name, input_schema) and OpenAI format (function.name, function.parameters)
     // Use a single functionDeclarations array for all tools
     let tools = null;
+    
     if (request.tools && request.tools.length > 0) {
       const functionDeclarations = [];
-      let hasWebSearch = false;
       
       for (const tool of request.tools) {
-        const toolName = tool.name || tool.function?.name;
-        
-        // Skip web_search - handled separately
-        if (toolName === 'web_search') {
-          hasWebSearch = true;
+        // Skip web_search tool (handled by separate rerouting)
+        if (tool.type === 'web_search_20250305') {
           continue;
         }
         
+        const toolName = tool.name || tool.function?.name;
+        
         let functionDeclaration;
+        const emptyParams = { type: 'object', properties: {} };
         
         // Handle Anthropic format (name + input_schema)
         if (tool.name && tool.input_schema) {
           const cleanedParams = cleanParameters(tool.input_schema);
           functionDeclaration = {
             name: tool.name,
-            description: tool.description || ''
+            description: tool.description || '',
+            // Always include parameters - use cleaned or default empty
+            parameters: (cleanedParams && Object.keys(cleanedParams).length > 0) ? cleanedParams : emptyParams
           };
-          // Only add parameters if it has properties
-          if (cleanedParams && cleanedParams.properties && Object.keys(cleanedParams.properties).length > 0) {
-            functionDeclaration.parameters = cleanedParams;
-          }
         }
         // Handle tool with direct parameters (name + parameters)
         else if (tool.name && tool.parameters) {
           const cleanedParams = cleanParameters(tool.parameters);
           functionDeclaration = {
             name: tool.name,
-            description: tool.description || ''
+            description: tool.description || '',
+            parameters: (cleanedParams && Object.keys(cleanedParams).length > 0) ? cleanedParams : emptyParams
           };
-          if (cleanedParams && cleanedParams.properties && Object.keys(cleanedParams.properties).length > 0) {
-            functionDeclaration.parameters = cleanedParams;
-          }
         }
         // Handle OpenAI format (function wrapper)
         else if (tool.function) {
-          const cleanedParams = cleanParameters(tool.function.parameters);
+          const func = tool.function;
+          const cleanedParams = cleanParameters(func.parameters);
           functionDeclaration = {
-            name: tool.function.name,
-            description: tool.function.description || ''
+            name: func.name,
+            description: func.description || '',
+            parameters: (cleanedParams && Object.keys(cleanedParams).length > 0) ? cleanedParams : emptyParams
           };
-          if (cleanedParams && cleanedParams.properties && Object.keys(cleanedParams.properties).length > 0) {
-            functionDeclaration.parameters = cleanedParams;
-          }
         }
         // Handle tools with just name (no input_schema or parameters)
         else if (tool.name) {
           functionDeclaration = {
             name: tool.name,
-            description: tool.description || ''
+            description: tool.description || '',
+            parameters: emptyParams
           };
         }
         
@@ -457,11 +453,6 @@ class AntigravityTransformer {
       tools = [];
       if (functionDeclarations.length > 0) {
         tools.push({ functionDeclarations: functionDeclarations });
-      }
-      
-      // Add web search if present
-      if (hasWebSearch) {
-        tools.push({ googleSearch: {} });
       }
       
       // If no tools after filtering, set to null
@@ -512,10 +503,12 @@ class AntigravityTransformer {
     const sessionId = `-${Date.now().toString().slice(-19)}`;
 
     // Map the Claude model to Antigravity model using configurable mapping
-    let antigravityModel = this.options.modelMapping[request.model];
+    // request.originalModel is set by router.ts before overwriting body.model
+    const requestedModel = request.originalModel || context?.originalModel || request.model || '';
+    let antigravityModel = this.options.modelMapping[requestedModel];
     if (!antigravityModel) {
       // Fallback: check if model name contains known patterns
-      const modelLower = (request.model || '').toLowerCase();
+      const modelLower = requestedModel.toLowerCase();
       if (modelLower.includes('opus')) {
         antigravityModel = this.options.modelMapping['claude-opus-4-5-20251101'] || 'claude-opus-4-5-thinking';
       } else if (modelLower.includes('haiku')) {
@@ -524,7 +517,9 @@ class AntigravityTransformer {
         // Default to Sonnet mapping
         antigravityModel = this.options.modelMapping['claude-sonnet-4-5-20250514'] || 'claude-sonnet-4-5-thinking';
       }
-      console.log(`[antigravity] Model "${request.model}" mapped to "${antigravityModel}"`);
+      console.log(`[antigravity] Model "${requestedModel}" (fallback) mapped to "${antigravityModel}"`);
+    } else {
+      console.log(`[antigravity] Model "${requestedModel}" mapped to "${antigravityModel}"`);
     }
 
     // Build the Antigravity request envelope
@@ -557,7 +552,9 @@ class AntigravityTransformer {
         }
       },
       // Pass the requested model to response transformer for dynamic model switching
-      requestModel: request.model
+      requestModel: request.model,
+      // Pass access token for WebSearch execution
+      accessToken: accessToken
     };
   }
   /**
@@ -573,6 +570,13 @@ class AntigravityTransformer {
     // Get requested model from context (set by transformRequestIn via router)
     const requestedModel = context?.requestModel || this.options.defaultModel;
     
+    // Handle web search response - convert non-streaming JSON to SSE stream
+    if (context?.isWebSearch && contentType.includes('application/json')) {
+      console.log(`[antigravity] Web search response - converting JSON to SSE stream`);
+      const result = await response.json();
+      return this.transformWebSearchResponse(result, { model: requestedModel });
+    }
+    
     // Streaming SSE response - transform from Gemini to Anthropic format
     if (contentType.includes('text/event-stream') || contentType.includes('stream')) {
       return this.transformStreamResponse(response, requestedModel);
@@ -584,6 +588,139 @@ class AntigravityTransformer {
     }
     
     return response;
+  }
+
+  /**
+   * Transform web search JSON response to Claude-compatible SSE stream
+   */
+  transformWebSearchResponse(result, originalRequest) {
+    const encoder = new TextEncoder();
+    
+    const candidate = result.response?.candidates?.[0];
+    if (!candidate) {
+      throw new Error('No candidate in web search response');
+    }
+    
+    // Extract text content from response
+    const textContent = (candidate.content?.parts || [])
+      .filter(p => p.text && !p.thought)
+      .map(p => p.text)
+      .join('');
+    
+    // Extract grounding metadata for search results
+    const groundingChunks = candidate.groundingMetadata?.groundingChunks || [];
+    const searchQuery = (candidate.groundingMetadata?.webSearchQueries || [])[0] || '';
+    
+    // Build web search results
+    const webSearchResults = groundingChunks
+      .filter(chunk => chunk.web)
+      .map((chunk, index) => {
+        const contentData = `${chunk.web.uri}:${index}:${Date.now()}`;
+        const encrypted_content = Buffer.from(contentData).toString('base64');
+        return {
+          type: 'web_search_result',
+          title: chunk.web.title || chunk.web.domain,
+          url: chunk.web.uri,
+          encrypted_content: encrypted_content,
+          page_age: null
+        };
+      });
+    
+    // Create SSE stream
+    const stream = new ReadableStream({
+      start(controller) {
+        const sendEvent = (eventType, data) => {
+          controller.enqueue(encoder.encode(`event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`));
+        };
+        
+        const messageId = `msg_${crypto.randomUUID().replace(/-/g, '').substring(0, 24)}`;
+        const searchToolId = `srvtoolu_${Math.random().toString(36).substring(2, 15)}`;
+        const modelName = originalRequest.model || 'claude-sonnet-4-5-20250514';
+        
+        let blockIndex = -1;
+        
+        // message_start
+        sendEvent('message_start', {
+          type: 'message_start',
+          message: {
+            id: messageId,
+            type: 'message',
+            role: 'assistant',
+            content: [],
+            model: modelName,
+            stop_reason: null,
+            stop_sequence: null,
+            usage: { input_tokens: 0, output_tokens: 0 }
+          }
+        });
+        
+        // server_tool_use block for web search
+        blockIndex++;
+        sendEvent('content_block_start', {
+          type: 'content_block_start',
+          index: blockIndex,
+          content_block: {
+            type: 'server_tool_use',
+            id: searchToolId,
+            name: 'web_search',
+            input: { query: searchQuery }
+          }
+        });
+        sendEvent('content_block_stop', { type: 'content_block_stop', index: blockIndex });
+        
+        // web_search_tool_result block
+        blockIndex++;
+        sendEvent('content_block_start', {
+          type: 'content_block_start',
+          index: blockIndex,
+          content_block: {
+            type: 'web_search_tool_result',
+            tool_use_id: searchToolId,
+            content: webSearchResults
+          }
+        });
+        sendEvent('content_block_stop', { type: 'content_block_stop', index: blockIndex });
+        
+        // text block with the actual response
+        if (textContent) {
+          blockIndex++;
+          sendEvent('content_block_start', {
+            type: 'content_block_start',
+            index: blockIndex,
+            content_block: { type: 'text', text: '' }
+          });
+          sendEvent('content_block_delta', {
+            type: 'content_block_delta',
+            index: blockIndex,
+            delta: { type: 'text_delta', text: textContent }
+          });
+          sendEvent('content_block_stop', { type: 'content_block_stop', index: blockIndex });
+        }
+        
+        // message_delta with stop reason
+        sendEvent('message_delta', {
+          type: 'message_delta',
+          delta: { stop_reason: 'end_turn', stop_sequence: null },
+          usage: {
+            output_tokens: result.response?.usageMetadata?.candidatesTokenCount || 0
+          }
+        });
+        
+        // message_stop
+        sendEvent('message_stop', { type: 'message_stop' });
+        
+        console.log(`[antigravity] Emitted ${webSearchResults.length} web search results from transformWebSearchResponse`);
+        controller.close();
+      }
+    });
+    
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+      }
+    });
   }
 
   /**
@@ -696,6 +833,7 @@ class AntigravityTransformer {
     let signatureSent = false;
     let hasThinkingContent = false;
     let lastUsageMetadata = null; // Track usage from Gemini response
+    let webSearchResultsSent = false; // Track if web search results have been emitted
 
     const transformer = this;
 
@@ -852,16 +990,8 @@ class AntigravityTransformer {
                   // Process tool calls
                   const toolCallParts = parts.filter(p => p.functionCall);
                   for (const part of toolCallParts) {
-                    // Close text block if open
-                    if (textBlockStarted) {
-                      sendEvent('content_block_stop', {
-                        type: 'content_block_stop',
-                        index: textBlockIndex
-                      });
-                      textBlockStarted = false;
-                    }
 
-                    // Start tool_use block
+                    // Regular tool call - emit as tool_use
                     currentBlockIndex++;
                     const toolBlockIndex = currentBlockIndex;
                     const toolId = part.functionCall.id || `toolu_${Math.random().toString(36).substring(2, 15)}`;
@@ -892,6 +1022,81 @@ class AntigravityTransformer {
                       type: 'content_block_stop',
                       index: toolBlockIndex
                     });
+                  }
+
+                  // Handle groundingMetadata from googleSearch tool
+                  // Transform Gemini's search results to Claude's web_search_tool_result format
+                  if (candidate.groundingMetadata && candidate.groundingMetadata.groundingChunks && !webSearchResultsSent) {
+                    const groundingChunks = candidate.groundingMetadata.groundingChunks;
+                    
+                    if (groundingChunks.length > 0) {
+                      // Close text block if open before emitting search results
+                      if (textBlockStarted) {
+                        sendEvent('content_block_stop', {
+                          type: 'content_block_stop',
+                          index: textBlockIndex
+                        });
+                        textBlockStarted = false;
+                      }
+
+                      // Generate a tool use ID for the search
+                      const searchToolId = `srvtoolu_${Math.random().toString(36).substring(2, 15)}`;
+                      const searchQuery = (candidate.groundingMetadata.webSearchQueries || [])[0] || '';
+                      
+                      // Emit server_tool_use block
+                      currentBlockIndex++;
+                      const serverToolUseIndex = currentBlockIndex;
+                      sendEvent('content_block_start', {
+                        type: 'content_block_start',
+                        index: serverToolUseIndex,
+                        content_block: {
+                          type: 'server_tool_use',
+                          id: searchToolId,
+                          name: 'web_search',
+                          input: { query: searchQuery }
+                        }
+                      });
+                      sendEvent('content_block_stop', {
+                        type: 'content_block_stop',
+                        index: serverToolUseIndex
+                      });
+
+                      // Build web_search_tool_result from groundingChunks
+                      const webSearchResults = groundingChunks
+                        .filter(chunk => chunk.web)
+                        .map((chunk, index) => {
+                          // Generate encrypted_content placeholder
+                          const contentData = `${chunk.web.uri}:${index}:${Date.now()}`;
+                          const encrypted_content = Buffer.from(contentData).toString('base64');
+                          
+                          return {
+                            type: 'web_search_result',
+                            title: chunk.web.title || chunk.web.domain,
+                            url: chunk.web.uri,
+                            encrypted_content: encrypted_content,
+                            page_age: null
+                          };
+                        });
+
+                      // Emit web_search_tool_result block
+                      currentBlockIndex++;
+                      const searchResultIndex = currentBlockIndex;
+                      sendEvent('content_block_start', {
+                        type: 'content_block_start',
+                        index: searchResultIndex,
+                        content_block: {
+                          type: 'web_search_tool_result',
+                          tool_use_id: searchToolId,
+                          content: webSearchResults
+                        }
+                      });
+                      sendEvent('content_block_stop', {
+                        type: 'content_block_stop',
+                        index: searchResultIndex
+                      });
+
+                      console.log(`[antigravity] Emitted ${webSearchResults.length} web search results`);
+                    }
                   }
 
                   // Handle finish reason
