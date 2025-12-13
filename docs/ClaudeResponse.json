@@ -1,0 +1,1247 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Claude Stream Event",
+  "description": "Schema for Anthropic Claude streaming events including thinking blocks and signatures",
+  "type": "object",
+  "required": [
+    "type"
+  ],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "message_start",
+        "content_block_start",
+        "content_block_delta",
+        "content_block_stop",
+        "message_delta",
+        "message_stop",
+        "ping",
+        "error"
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "title": "Message Start",
+      "properties": {
+        "type": {
+          "const": "message_start"
+        },
+        "message": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "const": "message"
+            },
+            "role": {
+              "type": "string",
+              "enum": [
+                "assistant"
+              ]
+            },
+            "content": {
+              "type": "array",
+              "default": []
+            },
+            "model": {
+              "type": "string"
+            },
+            "stop_reason": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "stop_sequence": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "usage": {
+              "$ref": "#/definitions/usage"
+            },
+            "service_tier": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "role",
+            "model",
+            "usage"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "message"
+      ]
+    },
+    {
+      "title": "Content Block Start",
+      "properties": {
+        "type": {
+          "const": "content_block_start"
+        },
+        "index": {
+          "type": "integer"
+        },
+        "content_block": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "text",
+                "thinking"
+              ]
+            },
+            "text": {
+              "type": "string"
+            },
+            "thinking": {
+              "type": "string"
+            },
+            "signature": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "index",
+        "content_block"
+      ]
+    },
+    {
+      "title": "Content Block Delta",
+      "properties": {
+        "type": {
+          "const": "content_block_delta"
+        },
+        "index": {
+          "type": "integer"
+        },
+        "delta": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "text_delta",
+                "thinking_delta",
+                "signature_delta"
+              ]
+            },
+            "text": {
+              "type": "string"
+            },
+            "thinking": {
+              "type": "string"
+            },
+            "signature": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "index",
+        "delta"
+      ]
+    },
+    {
+      "title": "Content Block Stop",
+      "properties": {
+        "type": {
+          "const": "content_block_stop"
+        },
+        "index": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "index"
+      ]
+    },
+    {
+      "title": "Message Delta",
+      "properties": {
+        "type": {
+          "const": "message_delta"
+        },
+        "delta": {
+          "type": "object",
+          "properties": {
+            "stop_reason": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "stop_sequence": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "stop_reason",
+            "stop_sequence"
+          ]
+        },
+        "usage": {
+          "type": "object",
+          "properties": {
+            "output_tokens": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "output_tokens"
+          ]
+        },
+        "context_management": {
+          "type": "object",
+          "properties": {
+            "applied_edits": {
+              "type": "array"
+            }
+          }
+        }
+      },
+      "required": [
+        "type",
+        "delta",
+        "usage"
+      ]
+    },
+    {
+      "title": "Message Stop",
+      "properties": {
+        "type": {
+          "const": "message_stop"
+        }
+      },
+      "required": [
+        "type"
+      ]
+    },
+    {
+      "title": "Ping",
+      "properties": {
+        "type": {
+          "const": "ping"
+        }
+      },
+      "required": [
+        "type"
+      ]
+    }
+  ],
+  "definitions": {
+    "usage": {
+      "type": "object",
+      "properties": {
+        "input_tokens": {
+          "type": "integer"
+        },
+        "output_tokens": {
+          "type": "integer"
+        },
+        "cache_creation_input_tokens": {
+          "type": "integer"
+        },
+        "cache_read_input_tokens": {
+          "type": "integer"
+        },
+        "cache_creation": {
+          "type": "object",
+          "properties": {
+            "ephemeral_5m_input_tokens": {
+              "type": "integer"
+            },
+            "ephemeral_1h_input_tokens": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "required": [
+        "input_tokens",
+        "output_tokens"
+      ]
+    }
+  }
+}
+// more
+#=1; Time=Sat Dec 13 2025 14: 18: 15 GMT+0200 (Eastern European Standard Time); Id=; Event=message_start; Data={
+  "type": "message_start",
+  "message": {
+    "model": "claude-haiku-4-5-20251001",
+    "id": "msg_01U8y4JMPmkcM4utM3CUSYzp",
+    "type": "message",
+    "role": "assistant",
+    "content": [],
+    "stop_reason": null,
+    "stop_sequence": null,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 10685,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+        "ephemeral_5m_input_tokens": 10685,
+        "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 1,
+      "service_tier": "standard"
+    }
+  }
+}; Raw=event: message_start
+data: {
+  "type": "message_start",
+  "message": {
+    "model": "claude-haiku-4-5-20251001",
+    "id": "msg_01U8y4JMPmkcM4utM3CUSYzp",
+    "type": "message",
+    "role": "assistant",
+    "content": [],
+    "stop_reason": null,
+    "stop_sequence": null,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 10685,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+        "ephemeral_5m_input_tokens": 10685,
+        "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 1,
+      "service_tier": "standard"
+    }
+  }
+}
+#=2; Time=Sat Dec 13 2025 14: 18: 15 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_start; Data={
+  "type": "content_block_start",
+  "index": 0,
+  "content_block": {
+    "type": "text",
+    "text": ""
+  }
+}; Raw=event: content_block_start
+data: {
+  "type": "content_block_start",
+  "index": 0,
+  "content_block": {
+    "type": "text",
+    "text": ""
+  }
+}
+#=3; Time=Sat Dec 13 2025 14: 18: 15 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 0,
+  "delta": {
+    "type": "text_delta",
+    "text": "I"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 0,
+  "delta": {
+    "type": "text_delta",
+    "text": "I"
+  }
+}
+#=4; Time=Sat Dec 13 2025 14: 18: 15 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 0,
+  "delta": {
+    "type": "text_delta",
+    "text": "'ll"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 0,
+  "delta": {
+    "type": "text_delta",
+    "text": "'ll"
+  }
+}
+#=5; Time=Sat Dec 13 2025 14: 18: 15 GMT+0200 (Eastern European Standard Time); Id=; Event=ping; Data={
+  "type": "ping"
+}; Raw=event: ping
+data: {
+  "type": "ping"
+}
+#=6; Time=Sat Dec 13 2025 14: 18: 15 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 0,
+  "delta": {
+    "type": "text_delta",
+    "text": " explore"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 0,
+  "delta": {
+    "type": "text_delta",
+    "text": " explore"
+  }
+}
+#=7; Time=Sat Dec 13 2025 14: 18: 15 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 0,
+  "delta": {
+    "type": "text_delta",
+    "text": " the current working directory to"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 0,
+  "delta": {
+    "type": "text_delta",
+    "text": " the current working directory to"
+  }
+}
+#=8; Time=Sat Dec 13 2025 14: 18: 15 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 0,
+  "delta": {
+    "type": "text_delta",
+    "text": " understand its"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 0,
+  "delta": {
+    "type": "text_delta",
+    "text": " understand its"
+  }
+}
+#=9; Time=Sat Dec 13 2025 14: 18: 15 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 0,
+  "delta": {
+    "type": "text_delta",
+    "text": " structure and identify any projects or code."
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 0,
+  "delta": {
+    "type": "text_delta",
+    "text": " structure and identify any projects or code."
+  }
+}
+#=10; Time=Sat Dec 13 2025 14: 18: 15 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_stop; Data={
+  "type": "content_block_stop",
+  "index": 0
+}; Raw=event: content_block_stop
+data: {
+  "type": "content_block_stop",
+  "index": 0
+}
+#=11; Time=Sat Dec 13 2025 14: 18: 15 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_start; Data={
+  "type": "content_block_start",
+  "index": 1,
+  "content_block": {
+    "type": "tool_use",
+    "id": "toolu_01CHpTGsjB4FheCncaR1xC6e",
+    "name": "Bash",
+    "input": {}
+  }
+}; Raw=event: content_block_start
+data: {
+  "type": "content_block_start",
+  "index": 1,
+  "content_block": {
+    "type": "tool_use",
+    "id": "toolu_01CHpTGsjB4FheCncaR1xC6e",
+    "name": "Bash",
+    "input": {}
+  }
+}
+#=12; Time=Sat Dec 13 2025 14: 18: 15 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": ""
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": ""
+  }
+}
+#=13; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "{\"command"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "{\"command"
+  }
+}
+#=14; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "\": \"ls -l"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "\": \"ls -l"
+  }
+}
+#=15; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "a \\\"C:\\"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "a \\\"C:\\"
+  }
+}
+#=16; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "\\Users\\\\ton"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "\\Users\\\\ton"
+  }
+}
+#=17; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "ch\\\""
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "ch\\\""
+  }
+}
+#=18; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "\""
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "\""
+  }
+}
+#=19; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": ", \"descript"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": ", \"descript"
+  }
+}
+#=20; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "ion\": \""
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "ion\": \""
+  }
+}
+#=21; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "Li"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "Li"
+  }
+}
+#=22; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "st"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "st"
+  }
+}
+#=23; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": " all fil"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": " all fil"
+  }
+}
+#=24; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "es and d"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "es and d"
+  }
+}
+#=25; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "irectories i"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "irectories i"
+  }
+}
+#=26; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "n the workin"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "n the workin"
+  }
+}
+#=27; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "g d"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "g d"
+  }
+}
+#=28; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "irect"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "irect"
+  }
+}
+#=29; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "or"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "or"
+  }
+}
+#=30; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "y\"}"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 1,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "y\"}"
+  }
+}
+#=31; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_stop; Data={
+  "type": "content_block_stop",
+  "index": 1
+}; Raw=event: content_block_stop
+data: {
+  "type": "content_block_stop",
+  "index": 1
+}
+#=32; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_start; Data={
+  "type": "content_block_start",
+  "index": 2,
+  "content_block": {
+    "type": "tool_use",
+    "id": "toolu_01UBRiWtS6n8LriAFqcRUeUU",
+    "name": "Bash",
+    "input": {}
+  }
+}; Raw=event: content_block_start
+data: {
+  "type": "content_block_start",
+  "index": 2,
+  "content_block": {
+    "type": "tool_use",
+    "id": "toolu_01UBRiWtS6n8LriAFqcRUeUU",
+    "name": "Bash",
+    "input": {}
+  }
+}
+#=33; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": ""
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": ""
+  }
+}
+#=34; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "{\"com"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "{\"com"
+  }
+}
+#=35; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "mand\""
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "mand\""
+  }
+}
+#=36; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": ": \"d"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": ": \"d"
+  }
+}
+#=37; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "ir \\\"C:\\\\Use"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "ir \\\"C:\\\\Use"
+  }
+}
+#=38; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "rs\\"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "rs\\"
+  }
+}
+#=39; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "\\tonch\\\" /"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "\\tonch\\\" /"
+  }
+}
+#=40; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "s /b"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "s /b"
+  }
+}
+#=41; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": " |"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": " |"
+  }
+}
+#=42; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": " head -50"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": " head -50"
+  }
+}
+#=43; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "\""
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "\""
+  }
+}
+#=44; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": ", \"de"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": ", \"de"
+  }
+}
+#=45; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "scription\":"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "scription\":"
+  }
+}
+#=46; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": " \"Sh"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": " \"Sh"
+  }
+}
+#=47; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "ow di"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "ow di"
+  }
+}
+#=48; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "rect"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "rect"
+  }
+}
+#=49; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "ory"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "ory"
+  }
+}
+#=50; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": " stru"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": " stru"
+  }
+}
+#=51; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "ctur"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "ctur"
+  }
+}
+#=52; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "e wi"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "e wi"
+  }
+}
+#=53; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "th firs"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "th firs"
+  }
+}
+#=54; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "t 50 e"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "t 50 e"
+  }
+}
+#=55; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "ntrie"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "ntrie"
+  }
+}
+#=56; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_delta; Data={
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "s\"}"
+  }
+}; Raw=event: content_block_delta
+data: {
+  "type": "content_block_delta",
+  "index": 2,
+  "delta": {
+    "type": "input_json_delta",
+    "partial_json": "s\"}"
+  }
+}
+#=57; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=content_block_stop; Data={
+  "type": "content_block_stop",
+  "index": 2
+}; Raw=event: content_block_stop
+data: {
+  "type": "content_block_stop",
+  "index": 2
+}
+#=58; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=message_delta; Data={
+  "type": "message_delta",
+  "delta": {
+    "stop_reason": "tool_use",
+    "stop_sequence": null
+  },
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 10685,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 182
+  },
+  "context_management": {
+    "applied_edits": []
+  }
+}; Raw=event: message_delta
+data: {
+  "type": "message_delta",
+  "delta": {
+    "stop_reason": "tool_use",
+    "stop_sequence": null
+  },
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 10685,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 182
+  },
+  "context_management": {
+    "applied_edits": []
+  }
+}
+#=59; Time=Sat Dec 13 2025 14: 18: 16 GMT+0200 (Eastern European Standard Time); Id=; Event=message_stop; Data={
+  "type": "message_stop"
+}; Raw=event: message_stop
+data: {
+  "type": "message_stop"
+}
