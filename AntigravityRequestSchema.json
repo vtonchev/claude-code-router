@@ -1,0 +1,1735 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Generated schema for Root",
+  "type": "object",
+  "properties": {
+    "project": {
+      "type": "string"
+    },
+    "requestId": {
+      "type": "string"
+    },
+    "request": {
+      "type": "object",
+      "properties": {
+        "contents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string"
+              },
+              "parts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": "string"
+                    },
+                    "functionCall": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "args": {
+                          "type": "object",
+                          "properties": {
+                            "CommandLine": {
+                              "type": "string"
+                            },
+                            "Cwd": {
+                              "type": "string"
+                            },
+                            "SafeToAutoRun": {
+                              "type": "boolean"
+                            },
+                            "WaitMsBeforeAsync": {
+                              "type": "number"
+                            },
+                            "waitForPreviousTools": {
+                              "type": "boolean"
+                            },
+                            "AllowMultiple": {
+                              "type": "boolean"
+                            },
+                            "CodeMarkdownLanguage": {
+                              "type": "string"
+                            },
+                            "Complexity": {
+                              "type": "number"
+                            },
+                            "Description": {
+                              "type": "string"
+                            },
+                            "EndLine": {
+                              "type": "number"
+                            },
+                            "Instruction": {
+                              "type": "string"
+                            },
+                            "ReplacementContent": {
+                              "type": "string"
+                            },
+                            "StartLine": {
+                              "type": "number"
+                            },
+                            "TargetContent": {
+                              "type": "string"
+                            },
+                            "TargetFile": {
+                              "type": "string"
+                            },
+                            "AbsolutePath": {
+                              "type": "string"
+                            },
+                            "Query": {
+                              "type": "string"
+                            },
+                            "Mode": {
+                              "type": "string"
+                            },
+                            "PredictedTaskSize": {
+                              "type": "number"
+                            },
+                            "TaskName": {
+                              "type": "string"
+                            },
+                            "TaskStatus": {
+                              "type": "string"
+                            },
+                            "TaskSummary": {
+                              "type": "string"
+                            },
+                            "BlockedOnUser": {
+                              "type": "boolean"
+                            },
+                            "ConfidenceJustification": {
+                              "type": "string"
+                            },
+                            "ConfidenceScore": {
+                              "type": "number"
+                            },
+                            "Message": {
+                              "type": "string"
+                            },
+                            "PathsToReview": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "CodeContent": {
+                              "type": "string"
+                            },
+                            "EmptyFile": {
+                              "type": "boolean"
+                            },
+                            "IsArtifact": {
+                              "type": "boolean"
+                            },
+                            "Overwrite": {
+                              "type": "boolean"
+                            },
+                            "ReplacementChunks": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "AllowMultiple": {
+                                    "type": "boolean"
+                                  },
+                                  "EndLine": {
+                                    "type": "number"
+                                  },
+                                  "ReplacementContent": {
+                                    "type": "string"
+                                  },
+                                  "StartLine": {
+                                    "type": "number"
+                                  },
+                                  "TargetContent": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "AllowMultiple",
+                                  "EndLine",
+                                  "ReplacementContent",
+                                  "StartLine",
+                                  "TargetContent"
+                                ]
+                              }
+                            },
+                            "MatchPerLine": {
+                              "type": "boolean"
+                            },
+                            "SearchPath": {
+                              "type": "string"
+                            },
+                            "TargetLintErrorIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": []
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "args"
+                      ]
+                    },
+                    "functionResponse": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "response": {
+                          "type": "object",
+                          "properties": {
+                            "output": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "output"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "response"
+                      ]
+                    },
+                    "thought": {
+                      "type": "boolean"
+                    },
+                    "thoughtSignature": {
+                      "type": "string"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            },
+            "required": [
+              "role",
+              "parts"
+            ]
+          }
+        },
+        "systemInstruction": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "parts": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "text"
+                ]
+              }
+            }
+          },
+          "required": [
+            "role",
+            "parts"
+          ]
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "functionDeclarations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "parameters": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "properties": {
+                          "type": "object",
+                          "properties": {
+                            "RecordingName": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "Task": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "TaskName": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "waitForPreviousTools": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "Query": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "TargetDirectories": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "type"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description",
+                                "items"
+                              ]
+                            },
+                            "CommandId": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "OutputCharacterCount": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "WaitDurationSeconds": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "Excludes": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "type"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description",
+                                "items"
+                              ]
+                            },
+                            "Extensions": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "type"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description",
+                                "items"
+                              ]
+                            },
+                            "FullPath": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "MaxDepth": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "Pattern": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "SearchDirectory": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "Type": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "ImageName": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "ImagePaths": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "type"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description",
+                                "items"
+                              ]
+                            },
+                            "Prompt": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "CaseInsensitive": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "Includes": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "type"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description",
+                                "items"
+                              ]
+                            },
+                            "IsRegex": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "MatchPerLine": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "SearchPath": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "DirectoryPath": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "ServerName": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "ArtifactMetadata": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "properties": {
+                                  "type": "object",
+                                  "properties": {
+                                    "ArtifactType": {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "enum": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "description",
+                                        "enum"
+                                      ]
+                                    },
+                                    "Summary": {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "description"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "ArtifactType",
+                                    "Summary"
+                                  ]
+                                },
+                                "required": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description",
+                                "properties",
+                                "required"
+                              ]
+                            },
+                            "CodeMarkdownLanguage": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "Complexity": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "Description": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "Instruction": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "ReplacementChunks": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string"
+                                    },
+                                    "properties": {
+                                      "type": "object",
+                                      "properties": {
+                                        "AllowMultiple": {
+                                          "type": "object",
+                                          "properties": {
+                                            "type": {
+                                              "type": "string"
+                                            },
+                                            "description": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "type",
+                                            "description"
+                                          ]
+                                        },
+                                        "EndLine": {
+                                          "type": "object",
+                                          "properties": {
+                                            "type": {
+                                              "type": "string"
+                                            },
+                                            "description": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "type",
+                                            "description"
+                                          ]
+                                        },
+                                        "ReplacementContent": {
+                                          "type": "object",
+                                          "properties": {
+                                            "type": {
+                                              "type": "string"
+                                            },
+                                            "description": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "type",
+                                            "description"
+                                          ]
+                                        },
+                                        "StartLine": {
+                                          "type": "object",
+                                          "properties": {
+                                            "type": {
+                                              "type": "string"
+                                            },
+                                            "description": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "type",
+                                            "description"
+                                          ]
+                                        },
+                                        "TargetContent": {
+                                          "type": "object",
+                                          "properties": {
+                                            "type": {
+                                              "type": "string"
+                                            },
+                                            "description": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "type",
+                                            "description"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "AllowMultiple",
+                                        "EndLine",
+                                        "ReplacementContent",
+                                        "StartLine",
+                                        "TargetContent"
+                                      ]
+                                    },
+                                    "required": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "properties",
+                                    "required"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description",
+                                "items"
+                              ]
+                            },
+                            "TargetFile": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "TargetLintErrorIds": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "type"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description",
+                                "items"
+                              ]
+                            },
+                            "BlockedOnUser": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "ConfidenceJustification": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "ConfidenceScore": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "Message": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "PathsToReview": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "type"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description",
+                                "items"
+                              ]
+                            },
+                            "Uri": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "Name": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "ProcessID": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "Url": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "AllowMultiple": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "EndLine": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "ReplacementContent": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "StartLine": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "TargetContent": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "CommandLine": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "Cwd": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "SafeToAutoRun": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "WaitMsBeforeAsync": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "AbsolutePath": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "domain": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "query": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type"
+                              ]
+                            },
+                            "Input": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "Terminate": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "WaitMs": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "Mode": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "PredictedTaskSize": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "TaskStatus": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "TaskSummary": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "File": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "NodePaths": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "type"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description",
+                                "items"
+                              ]
+                            },
+                            "document_id": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "position": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "ItemOffset": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "CodeContent": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "EmptyFile": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "IsArtifact": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            },
+                            "Overwrite": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "waitForPreviousTools"
+                          ]
+                        },
+                        "required": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "properties"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "description",
+                    "parameters"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "functionDeclarations"
+            ]
+          }
+        },
+        "toolConfig": {
+          "type": "object",
+          "properties": {
+            "functionCallingConfig": {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mode"
+              ]
+            }
+          },
+          "required": [
+            "functionCallingConfig"
+          ]
+        },
+        "generationConfig": {
+          "type": "object",
+          "properties": {
+            "temperature": {
+              "type": "number"
+            },
+            "topP": {
+              "type": "number"
+            },
+            "topK": {
+              "type": "number"
+            },
+            "candidateCount": {
+              "type": "number"
+            },
+            "maxOutputTokens": {
+              "type": "number"
+            },
+            "stopSequences": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "thinkingConfig": {
+              "type": "object",
+              "properties": {
+                "includeThoughts": {
+                  "type": "boolean"
+                },
+                "thinkingBudget": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "includeThoughts",
+                "thinkingBudget"
+              ]
+            }
+          },
+          "required": [
+            "temperature",
+            "topP",
+            "topK",
+            "candidateCount",
+            "maxOutputTokens",
+            "stopSequences",
+            "thinkingConfig"
+          ]
+        },
+        "sessionId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "contents",
+        "systemInstruction",
+        "tools",
+        "toolConfig",
+        "generationConfig",
+        "sessionId"
+      ]
+    },
+    "model": {
+      "type": "string"
+    },
+    "userAgent": {
+      "type": "string"
+    },
+    "requestType": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "project",
+    "requestId",
+    "request",
+    "model",
+    "userAgent",
+    "requestType"
+  ]
+}
