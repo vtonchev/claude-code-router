@@ -140,7 +140,7 @@ async function getFreshAccessToken() {
 
 /**
  * Clean parameters object by removing unsupported fields and fixing schema compatibility
- * for Gemini/Vertex API which requires JSON Schema draft 2020-12 format
+ * for Antigravity/Vertex API which requires JSON Schema draft 2020-12 format
  * Recursively processes nested objects
  * Also converts lowercase types to uppercase (object -> OBJECT, string -> STRING, etc.)
  */
@@ -155,7 +155,7 @@ function cleanParameters(params) {
   
   const cleaned = {};
   for (const [key, value] of Object.entries(params)) {
-    // Skip unsupported fields for Gemini/Vertex
+    // Skip unsupported fields for Antigravity/Vertex
     if (key === '$schema' || key === '$id' || key === '$ref' || key === '$defs' || 
         key === 'definitions' || key === '$comment' || key === 'examples' ||
         key === 'default' || key === 'additionalProperties' || //key === 'enum'
@@ -215,7 +215,7 @@ class AntigravityTransformer {
       // Sonnet variants
       'claude-sonnet-4-5-20250514': 'claude-sonnet-4-5-thinking',
       'claude-sonnet-4-20250514': 'claude-sonnet-4-5-thinking',
-      // Haiku variants -> gemini3-pro-high
+      // Haiku variants -> Antigravity3-pro-high
       'claude-haiku-4-5-20251001': 'gemini3-pro-high',
       'claude-3-5-haiku-20241022': 'gemini3-pro-high'
     };
@@ -272,6 +272,7 @@ class AntigravityTransformer {
       if (typeof message.content === 'string' && message.content) {
         const part = { text: message.content };
         if (message.thinking?.signature) {
+          part.thought = true;
           part.thoughtSignature = message.thinking.signature;
         }
         parts.push(part);
@@ -279,6 +280,25 @@ class AntigravityTransformer {
         for (const content of message.content) {
           if (content.type === 'text' && content.text) {
             parts.push({ text: content.text });
+          } else if (content.type === 'thinking' && content.thinking) {
+            // Anthropic thinking block -> Gemini thought format
+            const thinkingPart = { text: content.thinking, thought: true };
+            if (content.signature) {
+              thinkingPart.thoughtSignature = content.signature;
+            }
+            parts.push(thinkingPart);
+          } else if (content.type === 'redacted_thinking') {
+            // Handle redacted thinking - just include as thought with placeholder
+            parts.push({ text: '[redacted thinking]', thought: true });
+          } else if (content.type === 'tool_use') {
+            // Anthropic tool_use block -> Gemini functionCall format
+            parts.push({
+              functionCall: {
+                id: content.id || `tool_${Math.random().toString(36).substring(2, 15)}`,
+                name: content.name,
+                args: content.input || {}
+              }
+            });
           } else if (content.type === 'image_url') {
             if (content.image_url.url.startsWith('http')) {
               parts.push({
@@ -295,6 +315,25 @@ class AntigravityTransformer {
                 }
               });
             }
+          } else if (content.type === 'tool_result') {
+            // Anthropic tool_result block -> Gemini functionResponse format
+            // Extract text content from the result
+            let resultContent = '';
+            if (typeof content.content === 'string') {
+              resultContent = content.content;
+            } else if (Array.isArray(content.content)) {
+              resultContent = content.content
+                .filter(c => c.type === 'text')
+                .map(c => c.text)
+                .join('\n');
+            }
+            parts.push({
+              functionResponse: {
+                id: content.tool_use_id,
+                name: content.name || 'unknown',
+                response: { output: resultContent }
+              }
+            });
           }
         }
       }
@@ -311,9 +350,22 @@ class AntigravityTransformer {
             }
           };
           if (i === 0 && message.thinking?.signature) {
+            part.thought = true;
             part.thoughtSignature = message.thinking.signature;
           }
           parts.push(part);
+        }
+      }
+
+      // For model/assistant messages, ensure they start with a thinking block when thinking is enabled
+      // Check if request has thinking enabled and this is a model message
+      const thinkingEnabled = request.thinking && request.thinking.type === 'enabled';
+      if (thinkingEnabled && role === 'model' && parts.length > 0) {
+        // Check if first part is already a thought
+        const firstPart = parts[0];
+        if (!firstPart.thought) {
+          // Inject a placeholder thinking block at the start
+          parts.unshift({ text: '[previous thinking redacted]', thought: true });
         }
       }
 
@@ -489,13 +541,31 @@ class AntigravityTransformer {
       generationConfig.topP = request.top_p;
     }
 
-    // Add thinking config if reasoning is enabled
-    if (request.reasoning && request.reasoning.effort && request.reasoning.effort !== 'none') {
+    // Add thinking config if thinking/reasoning is enabled
+    // Handle Anthropic format: { thinking: { type: "enabled", budget_tokens: N } }
+    fs.appendFileSync(logPath, `[${timestamp}] request.thinking: ${JSON.stringify(request.thinking)}\n`);
+    console.log(`[antigravity] Incoming request.thinking:`, JSON.stringify(request.thinking));
+    if (request.thinking && request.thinking.type === 'enabled') {
+      // budget_tokens from Anthropic -> thinkingBudget for Antigravity
+      // Default to max_tokens - 1 if budget_tokens not provided
+      const thinkingBudget = request.thinking.budget_tokens || (request.max_tokens ? request.max_tokens - 1 : undefined);
       generationConfig.thinkingConfig = {
         includeThoughts: true
       };
-      if (request.reasoning.max_tokens) {
-        generationConfig.thinkingConfig.thinkingBudget = request.reasoning.max_tokens;
+      if (thinkingBudget) {
+        generationConfig.thinkingConfig.thinkingBudget = thinkingBudget;
+        fs.appendFileSync(logPath, `[${timestamp}] thinkingConfig set with budget: ${thinkingBudget}\n`);
+        console.log(`[antigravity] Setting thinkingBudget to ${thinkingBudget}`);
+      }
+    }
+    // Also handle legacy reasoning format: { reasoning: { effort: "high", max_tokens: N } }
+    else if (request.reasoning && request.reasoning.effort && request.reasoning.effort !== 'none') {
+      const thinkingBudget = request.reasoning.max_tokens || (request.max_tokens ? request.max_tokens - 1 : undefined);
+      generationConfig.thinkingConfig = {
+        includeThoughts: true
+      };
+      if (thinkingBudget) {
+        generationConfig.thinkingConfig.thinkingBudget = thinkingBudget;
       }
     }
 
@@ -561,7 +631,7 @@ class AntigravityTransformer {
    * Transform Antigravity response to unified format
    * Called when receiving response FROM the API
    * 
-   * Antigravity API returns Gemini-style SSE format that needs to be
+   * Antigravity API returns Antigravity-style SSE format that needs to be
    * converted to OpenAI-style streaming format.
    */
   async transformResponseOut(response, context) {
@@ -577,7 +647,7 @@ class AntigravityTransformer {
       return this.transformWebSearchResponse(result, { model: requestedModel });
     }
     
-    // Streaming SSE response - transform from Gemini to Anthropic format
+    // Streaming SSE response - transform from Antigravity to Anthropic format
     if (contentType.includes('text/event-stream') || contentType.includes('stream')) {
       return this.transformStreamResponse(response, requestedModel);
     }
@@ -809,7 +879,7 @@ class AntigravityTransformer {
   }
 
   /**
-   * Transform streaming SSE response from Gemini to Anthropic format
+   * Transform streaming SSE response from Antigravity to Anthropic format
    * Claude CLI expects Anthropic SSE events, not OpenAI format
    */
   transformStreamResponse(response, requestedModel) {
@@ -832,7 +902,7 @@ class AntigravityTransformer {
     let currentBlockIndex = -1;
     let signatureSent = false;
     let hasThinkingContent = false;
-    let lastUsageMetadata = null; // Track usage from Gemini response
+    let lastUsageMetadata = null; // Track usage from Antigravity response
     let webSearchResultsSent = false; // Track if web search results have been emitted
 
     const transformer = this;
@@ -875,7 +945,7 @@ class AntigravityTransformer {
                   // Use requested model for dynamic model switching
                   const normalizedModel = modelToUse;
 
-                  // Track usage metadata from Gemini response
+                  // Track usage metadata from Antigravity response
                   if (responseData.usageMetadata) {
                     lastUsageMetadata = responseData.usageMetadata;
                   }
@@ -900,6 +970,17 @@ class AntigravityTransformer {
 
                   // Process thinking parts FIRST
                   const thinkingParts = parts.filter(p => p.text && p.thought === true);
+                  
+                  // Debug: Log if we have thinking content
+                  if (thinkingParts.length > 0) {
+                    console.log(`[antigravity] Found ${thinkingParts.length} thinking parts`);
+                  }
+                  // Also check for any part with 'thought' to debug
+                  const anyThoughtParts = parts.filter(p => 'thought' in p);
+                  if (anyThoughtParts.length > 0) {
+                    console.log(`[antigravity] Parts with 'thought' field:`, JSON.stringify(anyThoughtParts.slice(0, 1)));
+                  }
+                  
                   for (const part of thinkingParts) {
                     hasThinkingContent = true;
                     
@@ -1025,7 +1106,7 @@ class AntigravityTransformer {
                   }
 
                   // Handle groundingMetadata from googleSearch tool
-                  // Transform Gemini's search results to Claude's web_search_tool_result format
+                  // Transform Antigravity's search results to Claude's web_search_tool_result format
                   if (candidate.groundingMetadata && candidate.groundingMetadata.groundingChunks && !webSearchResultsSent) {
                     const groundingChunks = candidate.groundingMetadata.groundingChunks;
                     
