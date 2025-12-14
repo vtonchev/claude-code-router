@@ -1,9 +1,17 @@
 {
+  "LOG": true,
+  "LOG_LEVEL": "debug",
+  "CLAUDE_PATH": "",
+  "HOST": "127.0.0.1",
+  "PORT": 3456,
+  "APIKEY": "",
+  "API_TIMEOUT_MS": "600000",
+  "PROXY_URL": "",
   "transformers": [
     {
-      "path": "./plugins/antigravity.transformer.js",
+      "path": "/home/valeri/Projects/Claude-Code-Server/plugins/antigravity.transformer.js",
       "options": {
-        "project": "your-project-id",
+        "project": "majestic-spot-nc5ww",
         "userAgent": "antigravity",
         "requestType": "agent",
         "defaultModel": "claude-sonnet-4-5-20250514",
@@ -16,21 +24,62 @@
           "claude-3-5-haiku-20241022": "gemini3-pro-high"
         }
       }
+    },
+    {
+      "path": "/home/valeri/Projects/Claude-Code-Server/plugins/antigravity-websearch.transformer.js",
+      "options": {
+        "project": "majestic-spot-nc5ww"
+      }
     }
   ],
   "Providers": [
     {
       "name": "antigravity",
-      "api_base_url": "https://your-antigravity-endpoint.com/api/",
-      "api_key": "",
-      "models": ["claude-opus-4-5-thinking", "claude-sonnet-4-5-thinking", "gemini3-pro-high"],
+      "api_base_url": "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:streamGenerateContent?alt=sse",
+      "api_key": "unused",
+      "models": [
+        "claude-opus-4-5-thinking",
+        "claude-sonnet-4-5-thinking",
+        "gemini3-pro-high"
+      ],
       "transformer": {
-        "use": ["antigravity"]
+        "use": [
+          "antigravity"
+        ]
+      }
+    },
+    {
+      "name": "antigravity-websearch",
+      "api_base_url": "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:generateContent",
+      "api_key": "unused",
+      "models": [
+        "gemini-2.5-flash"
+      ],
+      "transformer": {
+        "use": [
+          "antigravity-websearch"
+        ]
       }
     }
   ],
+  "StatusLine": {
+    "enabled": false,
+    "currentStyle": "default",
+    "default": {
+      "modules": []
+    },
+    "powerline": {
+      "modules": []
+    }
+  },
   "Router": {
-    "default": "antigravity,claude-sonnet-4-5-thinking",
-    "think": "antigravity,claude-opus-4-5-thinking"
-  }
+    "default": "antigravity",
+    "background": "",
+    "think": "antigravity",
+    "longContext": "",
+    "longContextThreshold": 60000,
+    "webSearch": "antigravity-websearch,gemini-2.5-flash",
+    "image": ""
+  },
+  "CUSTOM_ROUTER_PATH": "/home/valeri/Projects/Claude-Code-Server/plugins/antigravity-router.js"
 }
