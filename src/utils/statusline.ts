@@ -10,7 +10,7 @@ export interface StatusLineModuleConfig {
   text: string;
   color?: string;
   background?: string;
-  scriptPath?: string; // 用于script类型的模块，指定要执行的Node.js脚本文件路径
+  scriptPath?: string; // For script type modules, specifies the path to the Node.js script file to traverse
 }
 
 export interface StatusLineThemeConfig {
@@ -43,12 +43,12 @@ export interface AssistantMessage {
   };
 }
 
-// ANSIColor代码
+// ANSIColor codes
 const COLORS: Record<string, string> = {
   reset: "\x1b[0m",
   bold: "\x1b[1m",
   dim: "\x1b[2m",
-  // 标准颜色
+  // Standard colors
   black: "\x1b[30m",
   red: "\x1b[31m",
   green: "\x1b[32m",
@@ -57,7 +57,7 @@ const COLORS: Record<string, string> = {
   magenta: "\x1b[35m",
   cyan: "\x1b[36m",
   white: "\x1b[37m",
-  // 亮色
+  // Bright colors
   bright_black: "\x1b[90m",
   bright_red: "\x1b[91m",
   bright_green: "\x1b[92m",
@@ -66,7 +66,7 @@ const COLORS: Record<string, string> = {
   bright_magenta: "\x1b[95m",
   bright_cyan: "\x1b[96m",
   bright_white: "\x1b[97m",
-  // 背景颜色
+  // Background colors
   bg_black: "\x1b[40m",
   bg_red: "\x1b[41m",
   bg_green: "\x1b[42m",
@@ -75,7 +75,7 @@ const COLORS: Record<string, string> = {
   bg_magenta: "\x1b[45m",
   bg_cyan: "\x1b[46m",
   bg_white: "\x1b[47m",
-  // 亮背景色
+  // Bright background colors
   bg_bright_black: "\x1b[100m",
   bg_bright_red: "\x1b[101m",
   bg_bright_green: "\x1b[102m",
@@ -86,106 +86,106 @@ const COLORS: Record<string, string> = {
   bg_bright_white: "\x1b[107m",
 };
 
-// 使用TrueColor(24位色)支持十六进制颜色
+// Use TrueColor (24-bit color) to support hex colors
 const TRUE_COLOR_PREFIX = "\x1b[38;2;";
 const TRUE_COLOR_BG_PREFIX = "\x1b[48;2;";
 
-// 将十六进制颜色转为RGB格式
+// Convert hex color to RGB format
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
-  // 移除#和空格
+  // Remove # and spaces
   hex = hex.replace(/^#/, '').trim();
-  
-  // 处理简写形式 (#RGB -> #RRGGBB)
+
+  // Handle shorthand format (#RGB -> #RRGGBB)
   if (hex.length === 3) {
     hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
   }
-  
+
   if (hex.length !== 6) {
     return null;
   }
-  
+
   const r = parseInt(hex.substring(0, 2), 16);
   const g = parseInt(hex.substring(2, 4), 16);
   const b = parseInt(hex.substring(4, 6), 16);
-  
-  // 验证RGB值是否有效
+
+  // Validate if RGB values are valid
   if (isNaN(r) || isNaN(g) || isNaN(b) || r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) {
     return null;
   }
-  
+
   return { r, g, b };
 }
 
-// 获取颜色代码
+// Get color code
 function getColorCode(colorName: string): string {
-  // 检查是否是十六进制颜色
+  // Check if it is a hex color
   if (colorName.startsWith('#') || /^[0-9a-fA-F]{6}$/.test(colorName) || /^[0-9a-fA-F]{3}$/.test(colorName)) {
     const rgb = hexToRgb(colorName);
     if (rgb) {
       return `${TRUE_COLOR_PREFIX}${rgb.r};${rgb.g};${rgb.b}m`;
     }
   }
-  
-  // 默认返回空字符串
+
+  // Return empty string by default
   return "";
 }
 
 
-// 变量替换函数，支持{{var}}格式的变量替换
+// Variable replacement function, supports {{var}} format variable replacement
 function replaceVariables(text: string, variables: Record<string, string>): string {
   return text.replace(/\{\{(\w+)\}\}/g, (_match, varName) => {
     return variables[varName] || "";
   });
 }
 
-// 执行脚本并获取输出
+// Execute script and get output
 async function executeScript(scriptPath: string, variables: Record<string, string>): Promise<string> {
   try {
-    // 检查文件是否存在
+    // Check if file exists
     await fs.access(scriptPath);
-    
-    // 使用require动态加载脚本模块
+
+    // Dynamically load script module using require
     const scriptModule = require(scriptPath);
-    
-    // 如果导出的是函数，则调用它并传入变量
+
+    // If exported is a function, call it and pass variables
     if (typeof scriptModule === 'function') {
       const result = scriptModule(variables);
-      // 如果返回的是Promise，则等待它完成
+      // If it returns a Promise, wait for it to complete
       if (result instanceof Promise) {
         return await result;
       }
       return result;
     }
-    
-    // 如果导出的是default函数，则调用它
+
+    // If default export is a function, call it
     if (scriptModule.default && typeof scriptModule.default === 'function') {
       const result = scriptModule.default(variables);
-      // 如果返回的是Promise，则等待它完成
+      // If it returns a Promise, wait for it to complete
       if (result instanceof Promise) {
         return await result;
       }
       return result;
     }
-    
-    // 如果导出的是字符串，则直接返回
+
+    // If exported is a string, return directly
     if (typeof scriptModule === 'string') {
       return scriptModule;
     }
-    
-    // 如果导出的是default字符串，则返回它
+
+    // If default export is a string, return it
     if (scriptModule.default && typeof scriptModule.default === 'string') {
       return scriptModule.default;
     }
-    
-    // 默认情况下返回空字符串
+
+    // Return empty string by default
     return "";
   } catch (error) {
-    console.error(`执行脚本 ${scriptPath} 时出错:`, error);
+    console.error(`Error executing script ${scriptPath}:`, error);
     return "";
   }
 }
 
-// 默认主题配置 - 使用Nerd Fonts图标和美观配色
+// Default theme config - use Nerd Fonts icons and beautiful color scheme
 const DEFAULT_THEME: StatusLineThemeConfig = {
   modules: [
     {
@@ -208,20 +208,20 @@ const DEFAULT_THEME: StatusLineThemeConfig = {
     },
     {
       type: "usage",
-      icon: "↑", // 上箭头
+      icon: "↑", // Up arrow
       text: "{{inputTokens}}",
       color: "bright_green"
     },
     {
       type: "usage",
-      icon: "↓", // 下箭头
+      icon: "↓", // Down arrow
       text: "{{outputTokens}}",
       color: "bright_yellow"
     }
   ]
 };
 
-// Powerline风格主题配置
+// Powerline style theme config
 const POWERLINE_THEME: StatusLineThemeConfig = {
   modules: [
     {
@@ -247,14 +247,14 @@ const POWERLINE_THEME: StatusLineThemeConfig = {
     },
     {
       type: "usage",
-      icon: "↑", // 上箭头
+      icon: "↑", // Up arrow
       text: "{{inputTokens}}",
       color: "white",
       background: "bg_bright_green"
     },
     {
       type: "usage",
-      icon: "↓", // 下箭头
+      icon: "↓", // Down arrow
       text: "{{outputTokens}}",
       color: "white",
       background: "bg_bright_yellow"
@@ -262,7 +262,7 @@ const POWERLINE_THEME: StatusLineThemeConfig = {
   ]
 };
 
-// 简单文本主题配置 - 用于图标无法显示时的fallback
+// Simple text theme config - fallback when icons cannot be displayed
 const SIMPLE_THEME: StatusLineThemeConfig = {
   modules: [
     {
@@ -298,7 +298,7 @@ const SIMPLE_THEME: StatusLineThemeConfig = {
   ]
 };
 
-// 格式化usage信息，如果大于1000则使用k单位
+// Format usage info, use k unit if greater than 1000
 function formatUsage(input_tokens: number, output_tokens: number): string {
   if (input_tokens > 1000 || output_tokens > 1000) {
     const inputFormatted = input_tokens > 1000 ? `${(input_tokens / 1000).toFixed(1)}k` : `${input_tokens}`;
@@ -308,68 +308,68 @@ function formatUsage(input_tokens: number, output_tokens: number): string {
   return `${input_tokens} ${output_tokens}`;
 }
 
-// 读取用户主目录的主题配置
+// Read theme config from user home directory
 async function getProjectThemeConfig(): Promise<{ theme: StatusLineThemeConfig | null, style: string }> {
   try {
-    // 只使用主目录的固定配置文件
+    // Only use fixed config file in home directory
     const configPath = CONFIG_FILE;
-    
-    // 检查配置文件是否存在
+
+    // Check if config file exists
     try {
       await fs.access(configPath);
     } catch {
       return { theme: null, style: 'default' };
     }
-    
+
     const configContent = await fs.readFile(configPath, "utf-8");
     const config = JSON5.parse(configContent);
-    
-    // 检查是否有StatusLine配置
+
+    // Check if StatusLine config exists
     if (config.StatusLine) {
-      // 获取当前使用的风格，默认为default
+      // Get current style, default is default
       const currentStyle = config.StatusLine.currentStyle || 'default';
-      
-      // 检查是否有对应风格的配置
+
+      // Check if config for the style exists
       if (config.StatusLine[currentStyle] && config.StatusLine[currentStyle].modules) {
         return { theme: config.StatusLine[currentStyle], style: currentStyle };
       }
     }
   } catch (error) {
-    // 如果读取失败，返回null
+    // If read fails, return null
     // console.error("Failed to read theme config:", error);
   }
-  
+
   return { theme: null, style: 'default' };
 }
 
-// 检查是否应该使用简单主题（fallback方案）
-// 当环境变量 USE_SIMPLE_ICONS 被设置时，或者当检测到可能不支持Nerd Fonts的终端时
+// Check if simple theme should be used (fallback plan)
+// When env var USE_SIMPLE_ICONS is set, or when terminal potentially not supporting Nerd Fonts is detected
 function shouldUseSimpleTheme(): boolean {
-  // 检查环境变量
+  // Check environment variables
   if (process.env.USE_SIMPLE_ICONS === 'true') {
     return true;
   }
-  
-  // 检查终端类型（一些常见的不支持复杂图标的终端）
+
+  // Check terminal type (some common terminals that do not support complex icons)
   const term = process.env.TERM || '';
   const unsupportedTerms = ['dumb', 'unknown'];
   if (unsupportedTerms.includes(term)) {
     return true;
   }
-  
-  // 默认情况下，假设终端支持Nerd Fonts
+
+  // Assume terminal supports Nerd Fonts by default
   return false;
 }
 
-// 检查Nerd Fonts图标是否能正确显示
-// 通过检查终端字体信息或使用试探性方法
+// Check if Nerd Fonts icons can be displayed correctly
+// By checking terminal font info or using heuristic methods
 function canDisplayNerdFonts(): boolean {
-  // 如果环境变量明确指定使用简单图标，则不能显示Nerd Fonts
+  // If env var explicitly specifies simple icons, Nerd Fonts cannot be displayed
   if (process.env.USE_SIMPLE_ICONS === 'true') {
     return false;
   }
-  
-  // 检查一些常见的支持Nerd Fonts的终端环境变量
+
+  // Check some common terminal env vars that support Nerd Fonts
   const fontEnvVars = ['NERD_FONT', 'NERDFONT', 'FONT'];
   for (const envVar of fontEnvVars) {
     const value = process.env[envVar];
@@ -377,37 +377,37 @@ function canDisplayNerdFonts(): boolean {
       return true;
     }
   }
-  
-  // 检查终端类型
+
+  // Check terminal type
   const termProgram = process.env.TERM_PROGRAM || '';
   const supportedTerminals = ['iTerm.app', 'vscode', 'Hyper', 'kitty', 'alacritty'];
   if (supportedTerminals.includes(termProgram)) {
     return true;
   }
-  
-  // 检查COLORTERM环境变量
+
+  // Check COLORTERM environment variable
   const colorTerm = process.env.COLORTERM || '';
   if (colorTerm.includes('truecolor') || colorTerm.includes('24bit')) {
     return true;
   }
-  
-  // 默认情况下，假设可以显示Nerd Fonts（但允许用户通过环境变量覆盖）
+
+  // Assume Nerd Fonts can be displayed by default (but allow user to override via env var)
   return process.env.USE_SIMPLE_ICONS !== 'true';
 }
 
-// 检查特定Unicode字符是否能正确显示
-// 这是一个简单的试探性检查
+// Check if specific Unicode characters can be displayed correctly
+// This is a simple heuristic check
 function canDisplayUnicodeCharacter(char: string): boolean {
-  // 对于Nerd Fonts图标，我们假设支持UTF-8的终端可以显示
-  // 但实际上很难准确检测，所以我们依赖环境变量和终端类型检测
+  // For Nerd Fonts icons, we assume terminals supporting UTF-8 can display them
+  // But actually hard to detect accurately, so we rely on env vars and terminal type detection
   try {
-    // 检查终端是否支持UTF-8
+    // Check if terminal supports UTF-8
     const lang = process.env.LANG || process.env.LC_ALL || process.env.LC_CTYPE || '';
     if (lang.includes('UTF-8') || lang.includes('utf8') || lang.includes('UTF8')) {
       return true;
     }
-    
-    // 检查LC_*环境变量
+
+    // Check LC_* environment variables
     const lcVars = ['LC_ALL', 'LC_CTYPE', 'LANG'];
     for (const lcVar of lcVars) {
       const value = process.env[lcVar];
@@ -416,35 +416,35 @@ function canDisplayUnicodeCharacter(char: string): boolean {
       }
     }
   } catch (e) {
-    // 如果检查失败，默认返回true
+    // If check fails, return true by default
     return true;
   }
-  
-  // 默认情况下，假设可以显示
+
+  // Assume it can be displayed by default
   return true;
 }
 
 export async function parseStatusLineData(input: StatusLineInput): Promise<string> {
   try {
-    // 检查是否应该使用简单主题
+    // Check if simple theme should be used
     const useSimpleTheme = shouldUseSimpleTheme();
-    
-    // 检查是否可以显示Nerd Fonts图标
+
+    // Check if Nerd Fonts icons can be displayed
     const canDisplayNerd = canDisplayNerdFonts();
-    
-    // 确定使用的主题：如果用户强制使用简单主题或无法显示Nerd Fonts，则使用简单主题
+
+    // Determine theme to use: if user forces simple theme or cannot display Nerd Fonts, use simple theme
     const effectiveTheme = useSimpleTheme || !canDisplayNerd ? SIMPLE_THEME : DEFAULT_THEME;
-    
-    // 获取主目录的主题配置，如果没有则使用确定的默认配置
+
+    // Get theme config from home directory, if not use determined default config
     const { theme: projectTheme, style: currentStyle } = await getProjectThemeConfig();
     const theme = projectTheme || effectiveTheme;
-    
-    // 获取当前工作目录和Git分支
+
+    // Get current working directory and Git branch
     const workDir = input.workspace.current_dir;
     let gitBranch = "";
-    
+
     try {
-      // 尝试获取Git分支名
+      // Try to get Git branch name
       gitBranch = execSync("git branch --show-current", {
         cwd: workDir,
         stdio: ["pipe", "pipe", "ignore"],
@@ -452,24 +452,24 @@ export async function parseStatusLineData(input: StatusLineInput): Promise<strin
         .toString()
         .trim();
     } catch (error) {
-      // 如果不是Git仓库或获取失败，则忽略错误
+      // If not a Git repo or failed to get, ignore error
     }
-    
-    // 从transcript_path文件中读取最后一条assistant消息
+
+    // Read last assistant message from transcript_path file
     const transcriptContent = await fs.readFile(input.transcript_path, "utf-8");
     const lines = transcriptContent.trim().split("\n");
-    
-    // 反向遍历寻找最后一条assistant消息
+
+    // Iterate backwards to find last assistant message
     let model = "";
     let inputTokens = 0;
     let outputTokens = 0;
-    
+
     for (let i = lines.length - 1; i >= 0; i--) {
       try {
         const message: AssistantMessage = JSON.parse(lines[i]);
         if (message.type === "assistant" && message.message.model) {
           model = message.message.model;
-          
+
           if (message.message.usage) {
             inputTokens = message.message.usage.input_tokens;
             outputTokens = message.message.usage.output_tokens;
@@ -477,30 +477,30 @@ export async function parseStatusLineData(input: StatusLineInput): Promise<strin
           break;
         }
       } catch (parseError) {
-        // 忽略解析错误，继续查找
+        // Ignore parse error, continue searching
         continue;
       }
     }
-    
-    // 如果没有从transcript中获取到模型名称，则尝试从配置文件中获取
+
+    // If model name not obtained from transcript, try to get from config file
     if (!model) {
       try {
-        // 获取项目配置文件路径
+        // Get project config file path
         const projectConfigPath = path.join(workDir, ".claude-code-router", "config.json");
         let configPath = projectConfigPath;
-        
-        // 检查项目配置文件是否存在，如果不存在则使用用户主目录的配置文件
+
+        // Check if project config file exists, if not use user home directory config file
         try {
           await fs.access(projectConfigPath);
         } catch {
           configPath = CONFIG_FILE;
         }
-        
-        // 读取配置文件
+
+        // Read config file
         const configContent = await fs.readFile(configPath, "utf-8");
         const config = JSON5.parse(configContent);
-        
-        // 从Router字段的default内容中获取模型名称
+
+        // Get model name from Router field default content
         if (config.Router && config.Router.default) {
           const [, defaultModel] = config.Router.default.split(",");
           if (defaultModel) {
@@ -508,23 +508,23 @@ export async function parseStatusLineData(input: StatusLineInput): Promise<strin
           }
         }
       } catch (configError) {
-        // 如果配置文件读取失败，则忽略错误
+        // If config file read fails, ignore error
       }
     }
-    
-    // 如果仍然没有获取到模型名称，则使用传入的JSON数据中的model字段的display_name
+
+    // If model name still not obtained, use display_name from model field in input JSON data
     if (!model) {
       model = input.model.display_name;
     }
-    
-    // 获取工作目录名
+
+    // Get working directory name
     const workDirName = workDir.split("/").pop() || "";
-    
-    // 格式化usage信息
+
+    // Format usage info
     const usage = formatUsage(inputTokens, outputTokens);
     const [formattedInputTokens, formattedOutputTokens] = usage.split(" ");
-    
-    // 定义变量替换映射
+
+    // Define variable replacement map
     const variables = {
       workDirName,
       gitBranch,
@@ -532,102 +532,102 @@ export async function parseStatusLineData(input: StatusLineInput): Promise<strin
       inputTokens: formattedInputTokens,
       outputTokens: formattedOutputTokens
     };
-    
-    // 确定使用的风格
+
+    // Determine style to use
     const isPowerline = currentStyle === 'powerline';
-    
-    // 根据风格渲染状态行
+
+    // Render status line based on style
     if (isPowerline) {
       return await renderPowerlineStyle(theme, variables);
     } else {
       return await renderDefaultStyle(theme, variables);
     }
   } catch (error) {
-    // 发生错误时返回空字符串
+    // Return empty string on error
     return "";
   }
 }
 
-// 读取用户主目录的主题配置（指定风格）
+// Read user home directory theme config (specified style)
 async function getProjectThemeConfigForStyle(style: string): Promise<StatusLineThemeConfig | null> {
   try {
-    // 只使用主目录的固定配置文件
+    // Only use fixed config file in home directory
     const configPath = CONFIG_FILE;
-    
-    // 检查配置文件是否存在
+
+    // Check if config file exists
     try {
       await fs.access(configPath);
     } catch {
       return null;
     }
-    
+
     const configContent = await fs.readFile(configPath, "utf-8");
     const config = JSON5.parse(configContent);
-    
-    // 检查是否有StatusLine配置
+
+    // Check if StatusLine config exists
     if (config.StatusLine && config.StatusLine[style] && config.StatusLine[style].modules) {
       return config.StatusLine[style];
     }
   } catch (error) {
-    // 如果读取失败，返回null
+    // If read fails, return null
     // console.error("Failed to read theme config:", error);
   }
-  
+
   return null;
 }
 
-// 渲染默认风格的状态行
+// Render default style status line
 async function renderDefaultStyle(
   theme: StatusLineThemeConfig,
   variables: Record<string, string>
 ): Promise<string> {
   const modules = theme.modules || DEFAULT_THEME.modules;
   const parts: string[] = [];
-  
-  // 遍历模块数组，渲染每个模块
+
+  // Iterate module array, render each module
   for (let i = 0; i < Math.min(modules.length, 5); i++) {
     const module = modules[i];
     const color = module.color ? getColorCode(module.color) : "";
     const background = module.background ? getColorCode(module.background) : "";
     const icon = module.icon || "";
-    
-    // 如果是script类型，执行脚本获取文本
+
+    // If script type, execute script to get text
     let text = "";
     if (module.type === "script" && module.scriptPath) {
       text = await executeScript(module.scriptPath, variables);
     } else {
       text = replaceVariables(module.text, variables);
     }
-    
-    // 构建显示文本
+
+    // Build display text
     let displayText = "";
     if (icon) {
       displayText += `${icon} `;
     }
     displayText += text;
-    
-    // 如果displayText为空，或者只有图标没有实际文本，则跳过该模块
+
+    // If displayText is empty, or only icon without actual text, skip this module
     if (!displayText || !text) {
       continue;
     }
-    
-    // 构建模块字符串
+
+    // Build module string
     let part = `${background}${color}`;
     part += `${displayText}${COLORS.reset}`;
-    
+
     parts.push(part);
   }
-  
-  // 使用空格连接所有部分
+
+  // Join all parts with space
   return parts.join(" ");
 }
 
-// Powerline符号
+// Powerline symbols
 const SEP_RIGHT = "\uE0B0"; // 
 
-// 颜色编号（256色表）
+// Color numbers (256 color table)
 const COLOR_MAP: Record<string, number> = {
-  // 基础颜色映射到256色
+  // Basic colors mapped to 256 colors
   black: 0,
   red: 1,
   green: 2,
@@ -644,7 +644,7 @@ const COLOR_MAP: Record<string, number> = {
   bright_magenta: 13,
   bright_cyan: 14,
   bright_white: 15,
-  // 亮背景色映射
+  // Bright background colors mapped
   bg_black: 0,
   bg_red: 1,
   bg_green: 2,
@@ -661,39 +661,39 @@ const COLOR_MAP: Record<string, number> = {
   bg_bright_magenta: 13,
   bg_bright_cyan: 14,
   bg_bright_white: 15,
-  // 自定义颜色映射
+  // Custom color mapping
   bg_bright_orange: 202,
   bg_bright_purple: 129,
 };
 
-// 获取TrueColor的RGB值
+// Get TrueColor RGB values
 function getTrueColorRgb(colorName: string): { r: number; g: number; b: number } | null {
-  // 如果是预定义颜色，返回对应RGB
+  // If predefined color, return corresponding RGB
   if (COLOR_MAP[colorName] !== undefined) {
     const color256 = COLOR_MAP[colorName];
     return color256ToRgb(color256);
   }
-  
-  // 处理十六进制颜色
+
+  // Handle hex colors
   if (colorName.startsWith('#') || /^[0-9a-fA-F]{6}$/.test(colorName) || /^[0-9a-fA-F]{3}$/.test(colorName)) {
     return hexToRgb(colorName);
   }
-  
-  // 处理背景色十六进制
+
+  // Handle background hex colors
   if (colorName.startsWith('bg_#')) {
     return hexToRgb(colorName.substring(3));
   }
-  
+
   return null;
 }
 
-// 将256色表索引转换为RGB值
+// Convert 256 color table index to RGB values
 function color256ToRgb(index: number): { r: number; g: number; b: number } | null {
   if (index < 0 || index > 255) return null;
-  
-  // ANSI 256色表转换
+
+  // ANSI 256 color table conversion
   if (index < 16) {
-    // 基本颜色
+    // Basic colors
     const basicColors = [
       [0, 0, 0], [128, 0, 0], [0, 128, 0], [128, 128, 0],
       [0, 0, 128], [128, 0, 128], [0, 128, 128], [192, 192, 192],
@@ -702,7 +702,7 @@ function color256ToRgb(index: number): { r: number; g: number; b: number } | nul
     ];
     return { r: basicColors[index][0], g: basicColors[index][1], b: basicColors[index][2] };
   } else if (index < 232) {
-    // 216色：6×6×6的颜色立方体
+    // 216 colors: 6x6x6 color cube
     const i = index - 16;
     const r = Math.floor(i / 36);
     const g = Math.floor((i % 36) / 6);
@@ -710,104 +710,104 @@ function color256ToRgb(index: number): { r: number; g: number; b: number } | nul
     const rgb = [0, 95, 135, 175, 215, 255];
     return { r: rgb[r], g: rgb[g], b: rgb[b] };
   } else {
-    // 灰度色
+    // Grayscale colors
     const gray = 8 + (index - 232) * 10;
     return { r: gray, g: gray, b: gray };
   }
 }
 
-// 生成一个无缝拼接的段：文本在 bgN 上显示，分隔符从 bgN 过渡到 nextBgN
+// Generate a seamless segment: text displayed on bgN, separator transitions from bgN to nextBgN
 function segment(text: string, textFg: string, bgColor: string, nextBgColor: string | null): string {
   const bgRgb = getTrueColorRgb(bgColor);
   if (!bgRgb) {
-    // 如果无法获取RGB，使用默认蓝色背景
+    // If RGB cannot be obtained, use default blue background
     const defaultBlueRgb = { r: 33, g: 150, b: 243 };
     const curBg = `\x1b[48;2;${defaultBlueRgb.r};${defaultBlueRgb.g};${defaultBlueRgb.b}m`;
     const fgColor = `\x1b[38;2;255;255;255m`;
     const body = `${curBg}${fgColor} ${text} \x1b[0m`;
     return body;
   }
-  
+
   const curBg = `\x1b[48;2;${bgRgb.r};${bgRgb.g};${bgRgb.b}m`;
-  
-  // 获取前景色RGB
-  let fgRgb = { r: 255, g: 255, b: 255 }; // 默认前景色为白色
+
+  // Get foreground RGB
+  let fgRgb = { r: 255, g: 255, b: 255 }; // Default foreground is white
   const textFgRgb = getTrueColorRgb(textFg);
   if (textFgRgb) {
     fgRgb = textFgRgb;
   }
-  
+
   const fgColor = `\x1b[38;2;${fgRgb.r};${fgRgb.g};${fgRgb.b}m`;
   const body = `${curBg}${fgColor} ${text} \x1b[0m`;
-  
+
   if (nextBgColor != null) {
     const nextBgRgb = getTrueColorRgb(nextBgColor);
     if (nextBgRgb) {
-      // 分隔符：前景色是当前段的背景色，背景色是下一段的背景色
+      // Separator: foreground is current segment background, background is next segment background
       const sepCurFg = `\x1b[38;2;${bgRgb.r};${bgRgb.g};${bgRgb.b}m`;
       const sepNextBg = `\x1b[48;2;${nextBgRgb.r};${nextBgRgb.g};${nextBgRgb.b}m`;
       const sep = `${sepCurFg}${sepNextBg}${SEP_RIGHT}\x1b[0m`;
       return body + sep;
     }
-    // 如果没有下一个背景色，假设终端背景为黑色并渲染黑色箭头
+    // If no next background color, assume terminal background is black and render black arrow
     const sepCurFg = `\x1b[38;2;${bgRgb.r};${bgRgb.g};${bgRgb.b}m`;
-    const sepNextBg = `\x1b[48;2;0;0;0m`; // 黑色背景
+    const sepNextBg = `\x1b[48;2;0;0;0m`; // Black background
     const sep = `${sepCurFg}${sepNextBg}${SEP_RIGHT}\x1b[0m`;
     return body + sep;
   }
-  
+
   return body;
 }
 
-// 渲染Powerline风格的状态行
+// Render Powerline style status line
 async function renderPowerlineStyle(
   theme: StatusLineThemeConfig,
   variables: Record<string, string>
 ): Promise<string> {
   const modules = theme.modules || POWERLINE_THEME.modules;
   const segments: string[] = [];
-  
-  // 遍历模块数组，渲染每个模块
+
+  // Iterate module array, render each module
   for (let i = 0; i < Math.min(modules.length, 5); i++) {
     const module = modules[i];
     const color = module.color || "white";
     const backgroundName = module.background || "";
     const icon = module.icon || "";
-    
-    // 如果是script类型，执行脚本获取文本
+
+    // If script type, execute script to get text
     let text = "";
     if (module.type === "script" && module.scriptPath) {
       text = await executeScript(module.scriptPath, variables);
     } else {
       text = replaceVariables(module.text, variables);
     }
-    
-    // 构建显示文本
+
+    // Build display text
     let displayText = "";
     if (icon) {
       displayText += `${icon} `;
     }
     displayText += text;
-    
-    // 如果displayText为空，或者只有图标没有实际文本，则跳过该模块
+
+    // If displayText is empty, or only icon without actual text, skip this module
     if (!displayText || !text) {
       continue;
     }
-    
-    // 获取下一个模块的背景色（用于分隔符）
+
+    // Get next module background color (for separator)
     let nextBackground: string | null = null;
     if (i < modules.length - 1) {
       const nextModule = modules[i + 1];
       nextBackground = nextModule.background || null;
     }
-    
+
     // 使用模块定义的背景色，或者为Powerline风格提供默认背景色
     const actualBackground = backgroundName || "bg_bright_blue";
-    
+
     // 生成段，支持十六进制颜色
     const segmentStr = segment(displayText, color, actualBackground, nextBackground);
     segments.push(segmentStr);
   }
-  
+
   return segments.join("");
 }

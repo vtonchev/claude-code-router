@@ -3,6 +3,7 @@ import { readConfigFile, writeConfigFile, backupConfigFile } from "./utils";
 import { checkForUpdates, performUpdate } from "./utils";
 import { join } from "path";
 import fastifyStatic from "@fastify/static";
+import { FastifyRequest, FastifyReply } from "fastify";
 import { readdirSync, statSync, readFileSync, writeFileSync, existsSync, unlinkSync } from "fs";
 import { homedir } from "os";
 import { calculateTokenCount } from "./utils/router";
@@ -16,8 +17,9 @@ let appLogger: any = console;
 const RETRY_CONFIG = {
   maxRetries: 5,
   minTimeout: 500,    // Start with 500ms
-  maxTimeout: 10000,  // Max 10 seconds
-  timeoutFactor: 2,   // Exponential backoff factor
+  maxTimeout: 10000,  // In-memory cache, mapping sessionId to project name
+  // null value indicates searched before but not found
+  // Use LRU cache, limit 1000 entriesExponential backoff factor
   retryAfter: true,   // Respect Retry-After header
   statusCodes: [429, 503, 502, 500], // Status codes to retry
   errorCodes: ['ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT'],
@@ -115,14 +117,14 @@ export const createServer = (config: any): Server => {
   setGlobalDispatcher(loggingAgent); // Use loggingAgent directly, not retryAgent
   appLogger.info('[Network] Global dispatcher configured (retry disabled for streaming compatibility)');
 
-  server.app.post("/v1/messages/count_tokens", async (req, reply) => {
+  server.app.post<{ Body: { messages: any; tools: any; system: any } }>("/v1/messages/count_tokens", async (req, reply) => {
     const { messages, tools, system } = req.body;
     const tokenCount = calculateTokenCount(messages, system, tools);
     return { "input_tokens": tokenCount }
   });
 
   // Add endpoint to read config.json with access control
-  server.app.get("/api/config", async (req, reply) => {
+  server.app.get("/api/config", async (req: FastifyRequest, reply: FastifyReply) => {
     return await readConfigFile();
   });
 
@@ -153,7 +155,7 @@ export const createServer = (config: any): Server => {
   });
 
   // Add endpoint to restart the service with access control
-  server.app.post("/api/restart", async (req, reply) => {
+  server.app.post("/api/restart", async (req: FastifyRequest, reply: FastifyReply) => {
     reply.send({ success: true, message: "Service restart initiated" });
 
     // Restart the service after a short delay to allow response to be sent
@@ -174,14 +176,14 @@ export const createServer = (config: any): Server => {
   });
 
   // Redirect /ui to /ui/ for proper static file serving
-  server.app.get("/ui", async (_, reply) => {
+  server.app.get("/ui", async (_: FastifyRequest, reply: FastifyReply) => {
     return reply.redirect("/ui/");
   });
 
-  // 版本检查端点
-  server.app.get("/api/update/check", async (req, reply) => {
+  // Version check endpoint
+  server.app.get("/api/update/check", async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-      // 获取当前版本
+      // Get current version
       const currentVersion = require("../package.json").version;
       const { hasUpdate, latestVersion, changelog } = await checkForUpdates(currentVersion);
 
@@ -196,17 +198,17 @@ export const createServer = (config: any): Server => {
     }
   });
 
-  // 执行更新端点
-  server.app.post("/api/update/perform", async (req, reply) => {
+  // Perform update endpoint
+  server.app.post("/api/update/perform", async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-      // 只允许完全访问权限的用户执行更新
+      // Only allow users with full access to perform updates
       const accessLevel = (req as any).accessLevel || "restricted";
       if (accessLevel !== "full") {
         reply.status(403).send("Full access required to perform updates");
         return;
       }
 
-      // 执行更新逻辑
+      // Execute update logic
       const result = await performUpdate();
 
       return result;
@@ -216,8 +218,8 @@ export const createServer = (config: any): Server => {
     }
   });
 
-  // 获取日志文件列表端点
-  server.app.get("/api/logs/files", async (req, reply) => {
+  // Get log files list endpoint
+  server.app.get("/api/logs/files", async (req: FastifyRequest, reply: FastifyReply) => {
     try {
       const logDir = join(homedir(), ".claude-code-router", "logs");
       const logFiles: Array<{ name: string; path: string; size: number; lastModified: string }> = [];
@@ -239,7 +241,7 @@ export const createServer = (config: any): Server => {
           }
         }
 
-        // 按修改时间倒序排列
+        // Sort by modification time in descending order
         logFiles.sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime());
       }
 
@@ -250,17 +252,17 @@ export const createServer = (config: any): Server => {
     }
   });
 
-  // 获取日志内容端点 (Streaming implementation)
-  server.app.get("/api/logs", async (req, reply) => {
+  // Get log content endpoint (Streaming implementation)
+  server.app.get("/api/logs", async (req: FastifyRequest, reply: FastifyReply) => {
     try {
       const filePath = (req.query as any).file as string;
       let logFilePath: string;
 
       if (filePath) {
-        // 如果指定了文件路径，使用指定的路径
+        // If file path specified, use the specified path
         logFilePath = filePath;
       } else {
-        // 如果没有指定文件路径，使用默认的日志文件路径
+        // If no file path specified, use default log file path
         logFilePath = join(homedir(), ".claude-code-router", "logs", "app.log");
       }
 
@@ -280,8 +282,8 @@ export const createServer = (config: any): Server => {
     }
   });
 
-  // 清除日志内容端点
-  server.app.delete("/api/logs", async (req, reply) => {
+  // Clear log content endpoint
+  server.app.delete("/api/logs", async (req: FastifyRequest, reply: FastifyReply) => {
     try {
       const filePath = (req.query as any).file as string;
       const deleteAll = (req.query as any).all === 'true';
@@ -304,10 +306,10 @@ export const createServer = (config: any): Server => {
       let logFilePath: string;
 
       if (filePath) {
-        // 如果指定了文件路径，使用指定的路径
+        // If file path specified, use the specified path
         logFilePath = filePath;
       } else {
-        // 如果没有指定文件路径，使用默认的日志文件路径
+        // If no file path specified, use default log file path
         logFilePath = join(homedir(), ".claude-code-router", "logs", "app.log");
       }
 
@@ -330,7 +332,7 @@ export const createServer = (config: any): Server => {
   ];
 
   // Check if Google credentials exist
-  server.app.get("/api/google-auth/status", async (req, reply) => {
+  server.app.get("/api/google-auth/status", async (req: FastifyRequest, reply: FastifyReply) => {
     try {
       if (existsSync(GOOGLE_CREDENTIALS_PATH)) {
         const creds = JSON.parse(readFileSync(GOOGLE_CREDENTIALS_PATH, 'utf8'));
@@ -351,9 +353,9 @@ export const createServer = (config: any): Server => {
   });
 
   // Save Google client credentials
-  server.app.post("/api/google-auth/credentials", async (req, reply) => {
+  server.app.post<{ Body: { client_id: string; client_secret: string; redirect_uri?: string } }>("/api/google-auth/credentials", async (req, reply) => {
     try {
-      const { client_id, client_secret, redirect_uri } = req.body as { client_id: string; client_secret: string; redirect_uri?: string };
+      const { client_id, client_secret, redirect_uri } = req.body;
 
       if (!client_id || !client_secret) {
         reply.status(400).send({ error: "client_id and client_secret are required" });
@@ -386,7 +388,7 @@ export const createServer = (config: any): Server => {
   });
 
   // Start OAuth flow - creates local server for callback
-  server.app.get("/api/google-auth/start", async (req, reply) => {
+  server.app.get("/api/google-auth/start", async (req: FastifyRequest, reply: FastifyReply) => {
     try {
       // Load user credentials
       if (!existsSync(GOOGLE_CREDENTIALS_PATH)) {

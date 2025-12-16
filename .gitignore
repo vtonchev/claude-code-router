@@ -8,3 +8,4 @@ dist
 tsconfig.tsbuildinfo
 .agent
 1.txt
+logs

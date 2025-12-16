@@ -12,20 +12,20 @@ export interface Provider {
 }
 
 export interface RouterConfig {
-    default: string;
-    background: string;
-    think: string;
-    longContext: string;
-    longContextThreshold: number;
-    webSearch: string;
-    image: string;
-    custom?: any;
+  default: string;
+  background: string;
+  think: string;
+  longContext: string;
+  longContextThreshold: number;
+  webSearch: string;
+  image: string;
+  custom?: any;
 }
 
 export interface Transformer {
-    name?: string;
-    path: string;
-    options?: Record<string, any>;
+  name?: string;
+  path: string;
+  options?: Record<string, any>;
 }
 
 export interface StatusLineModuleConfig {
@@ -34,7 +34,7 @@ export interface StatusLineModuleConfig {
   text: string;
   color?: string;
   background?: string;
-  scriptPath?: string; // 用于script类型的模块，指定要执行的Node.js脚本文件路径
+  scriptPath?: string; // For script type modules, specifies the path to the Node.js script file to execute
 }
 
 export interface StatusLineThemeConfig {

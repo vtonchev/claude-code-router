@@ -1,9 +1,9 @@
 /**
  * Antigravity Transformer Plugin
- * 
+ *
  * Transforms requests/responses between unified format and Antigravity API format.
  * Uses Google OAuth for authentication (mandatory).
- * 
+ *
  * Usage in config.json:
  * {
  *   "transformers": [
@@ -18,14 +18,18 @@
  * }
  */
 
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const https = require('https');
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
+const https = require("https");
 
 // Configuration
-const CREDENTIALS_PATH = path.join(os.homedir(), '.claude-code-router', 'google_credentials.json');
-const OAUTH_SCOPES = ['https://www.googleapis.com/auth/cloud-platform'];
+const CREDENTIALS_PATH = path.join(
+  os.homedir(),
+  ".claude-code-router",
+  "google_credentials.json"
+);
+const OAUTH_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"];
 
 /**
  * Read stored credentials from file
@@ -33,11 +37,11 @@ const OAUTH_SCOPES = ['https://www.googleapis.com/auth/cloud-platform'];
 function readCredentials() {
   try {
     if (fs.existsSync(CREDENTIALS_PATH)) {
-      const data = fs.readFileSync(CREDENTIALS_PATH, 'utf8');
+      const data = fs.readFileSync(CREDENTIALS_PATH, "utf8");
       return JSON.parse(data);
     }
   } catch (error) {
-    console.error('[antigravity] Error reading credentials:', error.message);
+    console.error("[antigravity] Error reading credentials:", error.message);
   }
   return null;
 }
@@ -53,7 +57,7 @@ function saveCredentials(credentials) {
     }
     fs.writeFileSync(CREDENTIALS_PATH, JSON.stringify(credentials, null, 2));
   } catch (error) {
-    console.error('[antigravity] Error saving credentials:', error.message);
+    console.error("[antigravity] Error saving credentials:", error.message);
   }
 }
 
@@ -66,34 +70,36 @@ async function refreshAccessToken(credentials) {
       client_id: credentials.client_id,
       client_secret: credentials.client_secret,
       refresh_token: credentials.refresh_token,
-      grant_type: 'refresh_token'
+      grant_type: "refresh_token",
     }).toString();
 
     const options = {
-      hostname: 'oauth2.googleapis.com',
+      hostname: "oauth2.googleapis.com",
       port: 443,
-      path: '/token',
-      method: 'POST',
+      path: "/token",
+      method: "POST",
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Content-Length': Buffer.byteLength(postData)
-      }
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Length": Buffer.byteLength(postData),
+      },
     };
 
     const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
+      let data = "";
+      res.on("data", (chunk) => (data += chunk));
+      res.on("end", () => {
         try {
           const response = JSON.parse(data);
           if (response.access_token) {
             // Update stored credentials with new access token
             credentials.access_token = response.access_token;
-            credentials.token_expiry = Date.now() + (response.expires_in * 1000);
+            credentials.token_expiry = Date.now() + response.expires_in * 1000;
             saveCredentials(credentials);
             resolve(response.access_token);
           } else {
-            reject(new Error(response.error_description || 'Failed to refresh token'));
+            reject(
+              new Error(response.error_description || "Failed to refresh token")
+            );
           }
         } catch (error) {
           reject(error);
@@ -101,7 +107,7 @@ async function refreshAccessToken(credentials) {
       });
     });
 
-    req.on('error', reject);
+    req.on("error", reject);
     req.write(postData);
     req.end();
   });
@@ -112,29 +118,33 @@ async function refreshAccessToken(credentials) {
  */
 async function getFreshAccessToken() {
   const credentials = readCredentials();
-  
+
   if (!credentials) {
     throw new Error(
-      '[antigravity] No Google credentials found. Please authenticate via the web UI at http://localhost:3456/google-auth'
+      "[antigravity] No Google credentials found. Please authenticate via the web UI at http://localhost:3456/google-auth"
     );
   }
 
   if (!credentials.refresh_token) {
     throw new Error(
-      '[antigravity] No refresh token found. Please re-authenticate via the web UI at http://localhost:3456/google-auth'
+      "[antigravity] No refresh token found. Please re-authenticate via the web UI at http://localhost:3456/google-auth"
     );
   }
 
   // Check if token is expired or about to expire (5 min buffer)
   const now = Date.now();
   const expiryThreshold = 5 * 60 * 1000; // 5 minutes
-  
-  if (credentials.access_token && credentials.token_expiry && (credentials.token_expiry - now) > expiryThreshold) {
+
+  if (
+    credentials.access_token &&
+    credentials.token_expiry &&
+    credentials.token_expiry - now > expiryThreshold
+  ) {
     return credentials.access_token;
   }
 
   // Refresh the token
-  console.log('[antigravity] Refreshing access token...');
+  console.log("[antigravity] Refreshing access token...");
   return await refreshAccessToken(credentials);
 }
 
@@ -145,93 +155,115 @@ async function getFreshAccessToken() {
  * Also converts lowercase types to uppercase (object -> OBJECT, string -> STRING, etc.)
  */
 function cleanParameters(params) {
-  if (!params || typeof params !== 'object') {
+  if (!params || typeof params !== "object") {
     return params;
   }
-  
+
   if (Array.isArray(params)) {
     return params.map(cleanParameters);
   }
-  
+
   const cleaned = {};
   for (const [key, value] of Object.entries(params)) {
     // Skip unsupported fields for Antigravity/Vertex
-    if (key === '$schema' || key === '$id' || key === '$ref' || key === '$defs' || 
-        key === 'definitions' || key === '$comment' || key === 'examples' ||
-        key === 'default' || key === 'additionalProperties' || //key === 'enum'
-        key === 'minimum' || key === 'maximum' || key === 'minLength' || key === 'maxLength' ||
-        key === 'minItems' || key === 'maxItems' || key === 'uniqueItems' ||
-        key === 'pattern' || key === 'format' || key === 'nullable' || key === 'oneOf' ||
-        key === 'anyOf' || key === 'allOf' || key === 'not') {
+    if (
+      key === "$schema" ||
+      key === "$id" ||
+      key === "$ref" ||
+      key === "$defs" ||
+      key === "definitions" ||
+      key === "$comment" ||
+      key === "examples" ||
+      key === "default" ||
+      key === "additionalProperties" || //key === 'enum'
+      /*key === 'minimum' || key === 'maximum'  ||*/ key === "minLength" ||
+      key === "maxLength" ||
+      key === "minItems" ||
+      key === "maxItems" ||
+      key === "uniqueItems" ||
+      /*key === 'pattern' ||*/ key === "format" ||
+      key === "nullable" ||
+      key === "oneOf" ||
+      key === "anyOf" ||
+      key === "allOf" ||
+      key === "not"
+    ) {
+      // console.log('Skipping unsupported field:', key );
+      // console.dir(value);
       continue;
     }
-    
+
     // Skip empty required arrays (they can cause schema validation errors)
-    if (key === 'required' && Array.isArray(value) && value.length === 0) {
+    if (key === "required" && Array.isArray(value) && value.length === 0) {
       continue;
     }
-    
+
     // Skip empty properties objects
-    if (key === 'properties' && typeof value === 'object' && Object.keys(value).length === 0) {
+    if (
+      key === "properties" &&
+      typeof value === "object" &&
+      Object.keys(value).length === 0
+    ) {
       continue;
     }
-    
+
     // Handle items - if it's an empty object or has unsupported fields, simplify it
-    if (key === 'items' && typeof value === 'object') {
+    if (key === "items" && typeof value === "object") {
       const cleanedItems = cleanParameters(value);
       // If items is empty object after cleaning, use a simple string type
       if (Object.keys(cleanedItems).length === 0) {
-        cleaned[key] = { type: 'string' };
+        cleaned[key] = { type: "string" };
       } else {
         cleaned[key] = cleanedItems;
       }
       continue;
     }
-    
+
     cleaned[key] = cleanParameters(value);
   }
-  
+
   // If we have 'required' but no 'properties', remove required
   if (cleaned.required && !cleaned.properties) {
     delete cleaned.required;
   }
-  
+
   return cleaned;
 }
-
 
 /**
  * Antigravity Transformer class
  */
 class AntigravityTransformer {
   constructor(options = {}) {
-    this.name = 'antigravity';
-    
+    this.name = "antigravity";
+
     // Default model mappings: Claude Code model -> Antigravity model
     const defaultModelMapping = {
       // Opus variants
-      'claude-opus-4-5-20251101': 'claude-opus-4-5-thinking',
-      'claude-opus-4-20250514': 'claude-opus-4-5-thinking',
+      "claude-opus-4-5-20251101": "claude-opus-4-5-thinking",
+      "claude-opus-4-20250514": "claude-opus-4-5-thinking",
       // Sonnet variants
-      'claude-sonnet-4-5-20250514': 'claude-sonnet-4-5-thinking',
-      'claude-sonnet-4-20250514': 'claude-sonnet-4-5-thinking',
-      // Haiku variants -> Antigravity3-pro-high
-      'claude-haiku-4-5-20251001': 'gemini3-pro-high',
-      'claude-3-5-haiku-20241022': 'gemini3-pro-high'
+      "claude-sonnet-4-5-20250514": "claude-sonnet-4-5-thinking",
+      "claude-sonnet-4-20250514": "claude-sonnet-4-5-thinking",
+      // Haiku variants -> gemini3-pro-high
+      "claude-haiku-4-5-20251001": "gemini3-pro-high",
+      "claude-3-5-haiku-20241022": "gemini3-pro-high",
     };
-    
+
     this.options = {
-      project: options.project || 'default-project',
-      userAgent: options.userAgent || 'antigravity',
-      requestType: options.requestType || 'agent',
-      defaultModel: options.defaultModel || 'claude-sonnet-4-5-20250514',
+      project: options.project || "default-project",
+      userAgent: options.userAgent || "antigravity",
+      requestType: options.requestType || "agent",
+      defaultModel: options.defaultModel || "claude-sonnet-4-5-20250514",
       modelMapping: { ...defaultModelMapping, ...options.modelMapping },
-      ...options
+      ...options,
     };
-    
+
     // Build reverse mapping for response transformation
     this.reverseModelMapping = {};
-    for (const [claudeModel, antigravityModel] of Object.entries(this.options.modelMapping)) {
+    for (const [claudeModel, antigravityModel] of Object.entries(
+      this.options.modelMapping
+    )) {
       this.reverseModelMapping[antigravityModel] = claudeModel;
     }
   }
@@ -242,130 +274,117 @@ class AntigravityTransformer {
    */
   async transformRequestIn(request, provider, context) {
     // Log to file
-    const logPath = path.join(os.homedir(), '.claude-code-router', 'logs', 'antigravity.log');
+    const logPath = path.join(
+      os.homedir(),
+      ".claude-code-router",
+      "logs",
+      "antigravity.log"
+    );
     const timestamp = new Date().toISOString();
 
     // Get OAuth access token (mandatory)
     const accessToken = await getFreshAccessToken();
-    
+
     // Generate request ID
     const requestId = `agent-${crypto.randomUUID()}`;
-    
+
+    await fs.promises.writeFile(
+      path.join(process.cwd(), "logs", `test-${globalThis.timestamp}.jsonc`),
+      `\
+      //=============================================== \n\
+      //=      Unified Request In                     = \n\
+      //=============================================== \n\
+      ${JSON.stringify(request)}\n`,
+      { encoding: "utf-8", flag: "a" }
+    );
+
     // Build contents array from messages
     const contents = [];
-    const toolResponses = request.messages.filter(m => m.role === 'tool');
-    
-    for (const message of request.messages.filter(m => m.role !== 'tool')) {
+    const toolResponses = request.messages.filter((m) => m.role === "tool");
+
+    for (const message of request.messages.filter((m) => m.role !== "tool")) {
       let role;
-      if (message.role === 'assistant') {
-        role = 'model';
-      } else if (message.role === 'system') {
+      if (message.role === "assistant") {
+        role = "model";
+      } else if (message.role === "system") {
         // System messages go to systemInstruction, not contents
         continue;
       } else {
-        role = 'user';
+        role = "user";
       }
 
       const parts = [];
 
-      // Handle text content - only add if content is non-empty
-      if (typeof message.content === 'string' && message.content) {
-        const part = { text: message.content };
-        if (message.thinking?.signature) {
-          part.thought = true;
-          part.thoughtSignature = message.thinking.signature;
-        }
-        parts.push(part);
+      // 1. FIRST: Handle message.thinking (top-level thinking property)
+      // This should come before any other content
+      if (message.thinking) {
+        const thinkingPart = {
+          text: message.thinking.thinking || message.thinking.content || "",
+          thought: true,
+          thoughtSignature: message.thinking.signature || undefined,
+        };
+        parts.push(thinkingPart);
+      }
+
+      // 2. SECOND: Handle text content - only add if content is non-empty
+      if (typeof message.content === "string" && message.content) {
+        parts.push({ text: message.content });
       } else if (Array.isArray(message.content)) {
         for (const content of message.content) {
-          if (content.type === 'text' && content.text) {
+          if (content.type === "text" && content.text) {
             parts.push({ text: content.text });
-          } else if (content.type === 'thinking' && content.thinking) {
-            // Anthropic thinking block -> Gemini thought format
-            const thinkingPart = { text: content.thinking, thought: true };
-            if (content.signature) {
-              thinkingPart.thoughtSignature = content.signature;
-            }
-            parts.push(thinkingPart);
-          } else if (content.type === 'redacted_thinking') {
-            // Handle redacted thinking - just include as thought with placeholder
-            parts.push({ text: '[redacted thinking]', thought: true });
-          } else if (content.type === 'tool_use') {
-            // Anthropic tool_use block -> Gemini functionCall format
-            parts.push({
-              functionCall: {
-                id: content.id || `tool_${Math.random().toString(36).substring(2, 15)}`,
-                name: content.name,
-                args: content.input || {}
-              }
-            });
-          } else if (content.type === 'image_url') {
-            if (content.image_url.url.startsWith('http')) {
+          } else if (content.type === "image_url") {
+            if (content.image_url.url.startsWith("http")) {
               parts.push({
                 file_data: {
                   mime_type: content.media_type,
-                  file_uri: content.image_url.url
-                }
+                  file_uri: content.image_url.url,
+                },
               });
             } else {
               parts.push({
                 inlineData: {
                   mime_type: content.media_type,
-                  data: content.image_url.url.split(',').pop() || content.image_url.url
-                }
+                  data:
+                    content.image_url.url.split(",").pop() ||
+                    content.image_url.url,
+                },
               });
             }
-          } else if (content.type === 'tool_result') {
-            // Anthropic tool_result block -> Gemini functionResponse format
-            // Extract text content from the result
-            let resultContent = '';
-            if (typeof content.content === 'string') {
-              resultContent = content.content;
-            } else if (Array.isArray(content.content)) {
-              resultContent = content.content
-                .filter(c => c.type === 'text')
-                .map(c => c.text)
-                .join('\n');
-            }
-            parts.push({
-              functionResponse: {
-                id: content.tool_use_id,
-                name: content.name || 'unknown',
-                response: { output: resultContent }
-              }
-            });
           }
         }
       }
 
-      // Handle tool calls
+      // 3. THIRD: Handle tool calls (OpenAI format - message.tool_calls array)
       if (Array.isArray(message.tool_calls)) {
         for (let i = 0; i < message.tool_calls.length; i++) {
           const toolCall = message.tool_calls[i];
           const part = {
             functionCall: {
-              id: toolCall.id || `tool_${Math.random().toString(36).substring(2, 15)}`,
+              id:
+                toolCall.id ||
+                `tool_${Math.random().toString(36).substring(2, 15)}`,
               name: toolCall.function.name,
-              args: JSON.parse(toolCall.function.arguments || '{}')
-            }
+              args: JSON.parse(toolCall.function.arguments || "{}"),
+            },
           };
-          if (i === 0 && message.thinking?.signature) {
-            part.thought = true;
-            part.thoughtSignature = message.thinking.signature;
-          }
           parts.push(part);
         }
       }
 
       // For model/assistant messages, ensure they start with a thinking block when thinking is enabled
       // Check if request has thinking enabled and this is a model message
-      const thinkingEnabled = request.thinking && request.thinking.type === 'enabled';
-      if (thinkingEnabled && role === 'model' && parts.length > 0) {
+      const thinkingEnabled =
+        request.thinking && request.thinking.type === "enabled";
+      if (thinkingEnabled && role === "model" && parts.length > 0) {
         // Check if first part is already a thought
         const firstPart = parts[0];
         if (!firstPart.thought) {
           // Inject a placeholder thinking block at the start
-          parts.unshift({ text: '[previous thinking redacted]', thought: true });
+          parts.unshift({
+            text: "[previous thinking redacted]",
+            thought: true,
+          });
         }
       }
 
@@ -375,19 +394,21 @@ class AntigravityTransformer {
       }
 
       // Add function responses after model messages with tool calls
-      if (role === 'model' && message.tool_calls) {
-        const functionResponses = message.tool_calls.map(tool => {
-          const response = toolResponses.find(item => item.tool_call_id === tool.id);
+      if (role === "model" && message.tool_calls) {
+        const functionResponses = message.tool_calls.map((tool) => {
+          const response = toolResponses.find(
+            (item) => item.tool_call_id === tool.id
+          );
           return {
             functionResponse: {
               id: tool.id,
               name: tool.function?.name,
-              response: { output: response?.content }
-            }
+              response: { output: response?.content },
+            },
           };
         });
         if (functionResponses.length > 0) {
-          contents.push({ role: 'user', parts: functionResponses });
+          contents.push({ role: "user", parts: functionResponses });
         }
       }
     }
@@ -395,42 +416,48 @@ class AntigravityTransformer {
     // Build system instruction from system content
     // Anthropic format has "system" as a top-level array, not in messages
     let systemInstruction = null;
-    
+
     // Check for top-level system array (Anthropic format)
-    if (request.system && Array.isArray(request.system) && request.system.length > 0) {
+    if (
+      request.system &&
+      Array.isArray(request.system) &&
+      request.system.length > 0
+    ) {
       const systemParts = request.system
-        .filter(c => c.type === 'text' && c.text)
-        .map(c => ({ text: c.text }));
-      
+        .filter((c) => c.type === "text" && c.text)
+        .map((c) => ({ text: c.text }));
+
       if (systemParts.length > 0) {
         systemInstruction = {
-          role: 'user',
-          parts: systemParts
+          role: "user",
+          parts: systemParts,
         };
       }
     }
     // Also check for system messages in the messages array (fallback)
     else {
-      const systemMessages = request.messages.filter(m => m.role === 'system');
+      const systemMessages = request.messages.filter(
+        (m) => m.role === "system"
+      );
       if (systemMessages.length > 0) {
         const systemParts = [];
         for (const m of systemMessages) {
-          if (typeof m.content === 'string') {
+          if (typeof m.content === "string") {
             systemParts.push({ text: m.content });
           } else if (Array.isArray(m.content)) {
             // Handle array of content objects
             for (const c of m.content) {
-              if (c.type === 'text' && c.text) {
+              if (c.type === "text" && c.text) {
                 systemParts.push({ text: c.text });
               }
             }
           }
         }
-        
+
         if (systemParts.length > 0) {
           systemInstruction = {
-            role: 'user',
-            parts: systemParts
+            role: "user",
+            parts: systemParts,
           };
         }
       }
@@ -440,29 +467,32 @@ class AntigravityTransformer {
     // Handle both Anthropic format (name, input_schema) and OpenAI format (function.name, function.parameters)
     // Use a single functionDeclarations array for all tools
     let tools = null;
-    
+
     if (request.tools && request.tools.length > 0) {
       const functionDeclarations = [];
-      
+
       for (const tool of request.tools) {
         // Skip web_search tool (handled by separate rerouting)
-        if (tool.type === 'web_search_20250305') {
+        if (tool.type === "web_search_20250305") {
           continue;
         }
-        
+
         const toolName = tool.name || tool.function?.name;
-        
+
         let functionDeclaration;
-        const emptyParams = { type: 'object', properties: {} };
-        
+        const emptyParams = { type: "object", properties: {} };
+
         // Handle Anthropic format (name + input_schema)
         if (tool.name && tool.input_schema) {
           const cleanedParams = cleanParameters(tool.input_schema);
           functionDeclaration = {
             name: tool.name,
-            description: tool.description || '',
+            description: tool.description || "",
             // Always include parameters - use cleaned or default empty
-            parameters: (cleanedParams && Object.keys(cleanedParams).length > 0) ? cleanedParams : emptyParams
+            parameters:
+              cleanedParams && Object.keys(cleanedParams).length > 0
+                ? cleanedParams
+                : emptyParams,
           };
         }
         // Handle tool with direct parameters (name + parameters)
@@ -470,8 +500,11 @@ class AntigravityTransformer {
           const cleanedParams = cleanParameters(tool.parameters);
           functionDeclaration = {
             name: tool.name,
-            description: tool.description || '',
-            parameters: (cleanedParams && Object.keys(cleanedParams).length > 0) ? cleanedParams : emptyParams
+            description: tool.description || "",
+            parameters:
+              cleanedParams && Object.keys(cleanedParams).length > 0
+                ? cleanedParams
+                : emptyParams,
           };
         }
         // Handle OpenAI format (function wrapper)
@@ -480,24 +513,30 @@ class AntigravityTransformer {
           const cleanedParams = cleanParameters(func.parameters);
           functionDeclaration = {
             name: func.name,
-            description: func.description || '',
-            parameters: (cleanedParams && Object.keys(cleanedParams).length > 0) ? cleanedParams : emptyParams
+            description: func.description || "",
+            parameters:
+              cleanedParams && Object.keys(cleanedParams).length > 0
+                ? cleanedParams
+                : emptyParams,
           };
         }
         // Handle tools with just name (no input_schema or parameters)
         else if (tool.name) {
           functionDeclaration = {
             name: tool.name,
-            description: tool.description || '',
-            parameters: emptyParams
+            description: tool.description || "",
+            parameters: emptyParams,
           };
         }
-        
+
         // Add the tool if we have a declaration
         if (functionDeclaration) {
           functionDeclarations.push(functionDeclaration);
         } else {
-          console.warn(`[antigravity] Unknown tool format, skipping:`, JSON.stringify(tool).slice(0, 100));
+          console.warn(
+            `[antigravity] Unknown tool format, skipping:`,
+            JSON.stringify(tool).slice(0, 100)
+          );
         }
       }
 
@@ -506,7 +545,7 @@ class AntigravityTransformer {
       if (functionDeclarations.length > 0) {
         tools.push({ functionDeclarations: functionDeclarations });
       }
-      
+
       // If no tools after filtering, set to null
       if (tools.length === 0) {
         tools = null;
@@ -516,16 +555,18 @@ class AntigravityTransformer {
     // Build tool config - default to VALIDATED when tools are present
     let toolConfig = null;
     if (tools && tools.length > 0) {
-      toolConfig = { functionCallingConfig: { mode: 'VALIDATED' } };
-      if (request.tool_choice === 'auto') {
-        toolConfig.functionCallingConfig.mode = 'AUTO';
-      } else if (request.tool_choice === 'none') {
-        toolConfig.functionCallingConfig.mode = 'NONE';
-      } else if (request.tool_choice === 'required') {
-        toolConfig.functionCallingConfig.mode = 'ANY';
+      toolConfig = { functionCallingConfig: { mode: "VALIDATED" } };
+      if (request.tool_choice === "auto") {
+        toolConfig.functionCallingConfig.mode = "AUTO";
+      } else if (request.tool_choice === "none") {
+        toolConfig.functionCallingConfig.mode = "NONE";
+      } else if (request.tool_choice === "required") {
+        toolConfig.functionCallingConfig.mode = "ANY";
       } else if (request.tool_choice?.function?.name) {
-        toolConfig.functionCallingConfig.mode = 'ANY';
-        toolConfig.functionCallingConfig.allowedFunctionNames = [request.tool_choice.function.name];
+        toolConfig.functionCallingConfig.mode = "ANY";
+        toolConfig.functionCallingConfig.allowedFunctionNames = [
+          request.tool_choice.function.name,
+        ];
       }
     }
 
@@ -543,26 +584,45 @@ class AntigravityTransformer {
 
     // Add thinking config if thinking/reasoning is enabled
     // Handle Anthropic format: { thinking: { type: "enabled", budget_tokens: N } }
-    fs.appendFileSync(logPath, `[${timestamp}] request.thinking: ${JSON.stringify(request.thinking)}\n`);
-    console.log(`[antigravity] Incoming request.thinking:`, JSON.stringify(request.thinking));
-    if (request.thinking && request.thinking.type === 'enabled') {
+    fs.appendFileSync(
+      logPath,
+      `[${timestamp}] request.thinking: ${JSON.stringify(request.thinking)}\n`
+    );
+    console.log(
+      `[antigravity] Incoming request.thinking:`,
+      JSON.stringify(request.thinking)
+    );
+    if (request.thinking && request.thinking.type === "enabled") {
       // budget_tokens from Anthropic -> thinkingBudget for Antigravity
       // Default to max_tokens - 1 if budget_tokens not provided
-      const thinkingBudget = request.thinking.budget_tokens || (request.max_tokens ? request.max_tokens - 1 : undefined);
+      const thinkingBudget =
+        request.thinking.budget_tokens ||
+        (request.max_tokens ? request.max_tokens - 1 : undefined);
       generationConfig.thinkingConfig = {
-        includeThoughts: true
+        includeThoughts: true,
       };
       if (thinkingBudget) {
         generationConfig.thinkingConfig.thinkingBudget = thinkingBudget;
-        fs.appendFileSync(logPath, `[${timestamp}] thinkingConfig set with budget: ${thinkingBudget}\n`);
-        console.log(`[antigravity] Setting thinkingBudget to ${thinkingBudget}`);
+        fs.appendFileSync(
+          logPath,
+          `[${timestamp}] thinkingConfig set with budget: ${thinkingBudget}\n`
+        );
+        console.log(
+          `[antigravity] Setting thinkingBudget to ${thinkingBudget}`
+        );
       }
     }
     // Also handle legacy reasoning format: { reasoning: { effort: "high", max_tokens: N } }
-    else if (request.reasoning && request.reasoning.effort && request.reasoning.effort !== 'none') {
-      const thinkingBudget = request.reasoning.max_tokens || (request.max_tokens ? request.max_tokens - 1 : undefined);
+    else if (
+      request.reasoning &&
+      request.reasoning.effort &&
+      request.reasoning.effort !== "none"
+    ) {
+      const thinkingBudget =
+        request.reasoning.max_tokens ||
+        (request.max_tokens ? request.max_tokens - 1 : undefined);
       generationConfig.thinkingConfig = {
-        includeThoughts: true
+        includeThoughts: true,
       };
       if (thinkingBudget) {
         generationConfig.thinkingConfig.thinkingBudget = thinkingBudget;
@@ -571,26 +631,6 @@ class AntigravityTransformer {
 
     // Generate a session ID (negative number as seen in working example)
     const sessionId = `-${Date.now().toString().slice(-19)}`;
-
-    // Map the Claude model to Antigravity model using configurable mapping
-    // request.originalModel is set by router.ts before overwriting body.model
-    const requestedModel = request.originalModel || context?.originalModel || request.model || '';
-    let antigravityModel = this.options.modelMapping[requestedModel];
-    if (!antigravityModel) {
-      // Fallback: check if model name contains known patterns
-      const modelLower = requestedModel.toLowerCase();
-      if (modelLower.includes('opus')) {
-        antigravityModel = this.options.modelMapping['claude-opus-4-5-20251101'] || 'claude-opus-4-5-thinking';
-      } else if (modelLower.includes('haiku')) {
-        antigravityModel = this.options.modelMapping['claude-haiku-4-5-20251001'] || 'gemini3-pro-high';
-      } else {
-        // Default to Sonnet mapping
-        antigravityModel = this.options.modelMapping['claude-sonnet-4-5-20250514'] || 'claude-sonnet-4-5-thinking';
-      }
-      console.log(`[antigravity] Model "${requestedModel}" (fallback) mapped to "${antigravityModel}"`);
-    } else {
-      console.log(`[antigravity] Model "${requestedModel}" mapped to "${antigravityModel}"`);
-    }
 
     // Build the Antigravity request envelope
     const antigravityRequest = {
@@ -602,61 +642,82 @@ class AntigravityTransformer {
         ...(tools && { tools }),
         ...(toolConfig && { toolConfig }),
         ...(Object.keys(generationConfig).length > 0 && { generationConfig }),
-        sessionId: sessionId
+        sessionId: sessionId,
       },
-      model: antigravityModel,
+      model: request.model,
       userAgent: this.options.userAgent,
-      requestType: this.options.requestType
+      requestType: this.options.requestType,
     };
 
     // Log full request for debugging
-    fs.appendFileSync(logPath, `[${timestamp}] FULL REQUEST:\n${JSON.stringify(antigravityRequest, null, 2)}\n\n`);
-
+    // fs.appendFileSync(
+    //   logPath,
+    //   `[${timestamp}] FULL REQUEST:\n${JSON.stringify(
+    //     antigravityRequest,
+    //     null,
+    //     2
+    //   )}\n\n`
+    // );
+    await fs.promises.writeFile(
+      path.join(process.cwd(), "logs", `test-${globalThis.timestamp}.jsonc`),
+      `\
+      //=============================================== \n\
+      //=    Final Antigravity Request                = \n\
+      //=============================================== \n\
+      ${JSON.stringify(antigravityRequest)}
+      \n`,
+      { encoding: "utf-8", flag: "a" }
+    );
     return {
       body: antigravityRequest,
       config: {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-          'User-Agent': 'antigravity/ windows/amd64'
-        }
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          "User-Agent": "antigravity/ windows/amd64",
+        },
       },
       // Pass the requested model to response transformer for dynamic model switching
       requestModel: request.model,
       // Pass access token for WebSearch execution
-      accessToken: accessToken
+      accessToken: accessToken,
     };
   }
   /**
    * Transform Antigravity response to unified format
    * Called when receiving response FROM the API
-   * 
+   *
    * Antigravity API returns Antigravity-style SSE format that needs to be
    * converted to OpenAI-style streaming format.
    */
   async transformResponseOut(response, context) {
-    const contentType = response.headers.get('Content-Type') || '';
-    
+    const contentType = response.headers.get("Content-Type") || "";
+
     // Get requested model from context (set by transformRequestIn via router)
     const requestedModel = context?.requestModel || this.options.defaultModel;
-    
+
     // Handle web search response - convert non-streaming JSON to SSE stream
-    if (context?.isWebSearch && contentType.includes('application/json')) {
-      console.log(`[antigravity] Web search response - converting JSON to SSE stream`);
+    if (context?.isWebSearch && contentType.includes("application/json")) {
+      console.log(
+        `[antigravity] Web search response - converting JSON to SSE stream`
+      );
       const result = await response.json();
       return this.transformWebSearchResponse(result, { model: requestedModel });
     }
-    
+
     // Streaming SSE response - transform from Antigravity to Anthropic format
-    if (contentType.includes('text/event-stream') || contentType.includes('stream')) {
+    if (
+      contentType.includes("text/event-stream") ||
+      contentType.includes("stream")
+    ) {
       return this.transformStreamResponse(response, requestedModel);
     }
-    
-    if (contentType.includes('application/json')) {
+
+    if (contentType.includes("application/json")) {
       // Non-streaming response - may need transformation
       return this.transformJsonResponse(response, requestedModel);
     }
-    
+
     return response;
   }
 
@@ -665,131 +726,157 @@ class AntigravityTransformer {
    */
   transformWebSearchResponse(result, originalRequest) {
     const encoder = new TextEncoder();
-    
+    console.log("HI from transformWebSearchResponse");
     const candidate = result.response?.candidates?.[0];
     if (!candidate) {
-      throw new Error('No candidate in web search response');
+      throw new Error("No candidate in web search response");
     }
-    
+
     // Extract text content from response
     const textContent = (candidate.content?.parts || [])
-      .filter(p => p.text && !p.thought)
-      .map(p => p.text)
-      .join('');
-    
+      .filter((p) => p.text && !p.thought)
+      .map((p) => p.text)
+      .join("");
+
     // Extract grounding metadata for search results
     const groundingChunks = candidate.groundingMetadata?.groundingChunks || [];
-    const searchQuery = (candidate.groundingMetadata?.webSearchQueries || [])[0] || '';
-    
+    const searchQuery =
+      (candidate.groundingMetadata?.webSearchQueries || [])[0] || "";
+
     // Build web search results
     const webSearchResults = groundingChunks
-      .filter(chunk => chunk.web)
+      .filter((chunk) => chunk.web)
       .map((chunk, index) => {
         const contentData = `${chunk.web.uri}:${index}:${Date.now()}`;
-        const encrypted_content = Buffer.from(contentData).toString('base64');
+        const encrypted_content = Buffer.from(contentData).toString("base64");
         return {
-          type: 'web_search_result',
+          type: "web_search_result",
           title: chunk.web.title || chunk.web.domain,
           url: chunk.web.uri,
           encrypted_content: encrypted_content,
-          page_age: null
+          page_age: null,
         };
       });
-    
+
     // Create SSE stream
     const stream = new ReadableStream({
       start(controller) {
         const sendEvent = (eventType, data) => {
-          controller.enqueue(encoder.encode(`event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`));
+          controller.enqueue(
+            encoder.encode(
+              `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`
+            )
+          );
         };
-        
-        const messageId = `msg_${crypto.randomUUID().replace(/-/g, '').substring(0, 24)}`;
-        const searchToolId = `srvtoolu_${Math.random().toString(36).substring(2, 15)}`;
-        const modelName = originalRequest.model || 'claude-sonnet-4-5-20250514';
-        
+
+        const messageId = `msg_${crypto
+          .randomUUID()
+          .replace(/-/g, "")
+          .substring(0, 24)}`;
+        const searchToolId = `srvtoolu_${Math.random()
+          .toString(36)
+          .substring(2, 15)}`;
+        // Use reverse mapping to convert Antigravity model names back to Claude model names
+        let modelName = originalRequest.model || "claude-sonnet-4-5-20250514";
+        if (transformer.reverseModelMapping[modelName]) {
+          modelName = transformer.reverseModelMapping[modelName];
+        }
+
         let blockIndex = -1;
-        
+
         // message_start
-        sendEvent('message_start', {
-          type: 'message_start',
+        sendEvent("message_start", {
+          type: "message_start",
           message: {
             id: messageId,
-            type: 'message',
-            role: 'assistant',
+            type: "message",
+            role: "assistant",
             content: [],
             model: modelName,
             stop_reason: null,
             stop_sequence: null,
-            usage: { input_tokens: 0, output_tokens: 0 }
-          }
+            usage: { input_tokens: 0, output_tokens: 0 },
+          },
         });
-        
+
         // server_tool_use block for web search
         blockIndex++;
-        sendEvent('content_block_start', {
-          type: 'content_block_start',
+        sendEvent("content_block_start", {
+          type: "content_block_start",
           index: blockIndex,
           content_block: {
-            type: 'server_tool_use',
+            type: "server_tool_use",
             id: searchToolId,
-            name: 'web_search',
-            input: { query: searchQuery }
-          }
+            name: "web_search",
+            input: { query: searchQuery },
+          },
         });
-        sendEvent('content_block_stop', { type: 'content_block_stop', index: blockIndex });
-        
+        sendEvent("content_block_stop", {
+          type: "content_block_stop",
+          index: blockIndex,
+        });
+
         // web_search_tool_result block
         blockIndex++;
-        sendEvent('content_block_start', {
-          type: 'content_block_start',
+        sendEvent("content_block_start", {
+          type: "content_block_start",
           index: blockIndex,
           content_block: {
-            type: 'web_search_tool_result',
+            type: "web_search_tool_result",
             tool_use_id: searchToolId,
-            content: webSearchResults
-          }
+            content: webSearchResults,
+          },
         });
-        sendEvent('content_block_stop', { type: 'content_block_stop', index: blockIndex });
-        
+        sendEvent("content_block_stop", {
+          type: "content_block_stop",
+          index: blockIndex,
+        });
+
         // text block with the actual response
         if (textContent) {
           blockIndex++;
-          sendEvent('content_block_start', {
-            type: 'content_block_start',
+          sendEvent("content_block_start", {
+            type: "content_block_start",
             index: blockIndex,
-            content_block: { type: 'text', text: '' }
+            content_block: { type: "text", text: "" },
           });
-          sendEvent('content_block_delta', {
-            type: 'content_block_delta',
+          sendEvent("content_block_delta", {
+            type: "content_block_delta",
             index: blockIndex,
-            delta: { type: 'text_delta', text: textContent }
+            delta: { type: "text_delta", text: textContent },
           });
-          sendEvent('content_block_stop', { type: 'content_block_stop', index: blockIndex });
+          sendEvent("content_block_stop", {
+            type: "content_block_stop",
+            index: blockIndex,
+          });
         }
-        
+
         // message_delta with stop reason
-        sendEvent('message_delta', {
-          type: 'message_delta',
-          delta: { stop_reason: 'end_turn', stop_sequence: null },
+        sendEvent("message_delta", {
+          type: "message_delta",
+          delta: { stop_reason: "end_turn", stop_sequence: null },
           usage: {
-            output_tokens: result.response?.usageMetadata?.candidatesTokenCount || 0
-          }
+            output_tokens:
+              result.response?.usageMetadata?.candidatesTokenCount || 0,
+          },
         });
-        
+
         // message_stop
-        sendEvent('message_stop', { type: 'message_stop' });
-        
-        console.log(`[antigravity] Emitted ${webSearchResults.length} web search results from transformWebSearchResponse`);
+        sendEvent("message_stop", { type: "message_stop" });
+
+        console.log(
+          `[antigravity] Emitted ${webSearchResults.length} web search results from transformWebSearchResponse`
+        );
         controller.close();
-      }
+      },
     });
-    
+
     return new Response(stream, {
       headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
-      }
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
     });
   }
 
@@ -798,11 +885,19 @@ class AntigravityTransformer {
    */
   async transformJsonResponse(response, requestedModel) {
     const data = await response.json();
-    
-    // Use requested model or fall back to configured default
-    const modelToUse = requestedModel || this.options.defaultModel;
-    
-    if (!data.response || !data.response.candidates || !data.response.candidates[0]) {
+
+    // Use requested model, or use reverse mapping if it's an Antigravity model, or fall back to default
+    let modelToUse = requestedModel || this.options.defaultModel;
+    // Convert Antigravity model names back to Claude model names
+    if (this.reverseModelMapping[modelToUse]) {
+      modelToUse = this.reverseModelMapping[modelToUse];
+    }
+
+    if (
+      !data.response ||
+      !data.response.candidates ||
+      !data.response.candidates[0]
+    ) {
       return response;
     }
 
@@ -810,8 +905,8 @@ class AntigravityTransformer {
     const parts = candidate.content?.parts || [];
 
     // Extract thinking content
-    let thinkingContent = '';
-    let thinkingSignature = '';
+    let thinkingContent = "";
+    let thinkingSignature = "";
     const nonThinkingParts = [];
 
     for (const part of parts) {
@@ -823,58 +918,63 @@ class AntigravityTransformer {
     }
 
     // Get thought signature
-    thinkingSignature = parts.find(p => p.thoughtSignature)?.thoughtSignature;
+    thinkingSignature = parts.find((p) => p.thoughtSignature)?.thoughtSignature;
 
     // Extract tool calls
     const toolCalls = nonThinkingParts
-      .filter(part => part.functionCall)
-      .map(part => ({
-        id: part.functionCall.id || `tool_${Math.random().toString(36).substring(2, 15)}`,
-        type: 'function',
+      .filter((part) => part.functionCall)
+      .map((part) => ({
+        id:
+          part.functionCall.id ||
+          `tool_${Math.random().toString(36).substring(2, 15)}`,
+        type: "function",
         function: {
           name: part.functionCall.name,
-          arguments: JSON.stringify(part.functionCall.args || {})
-        }
+          arguments: JSON.stringify(part.functionCall.args || {}),
+        },
       }));
 
     // Extract text content
     const textContent = nonThinkingParts
-      .filter(part => part.text && !part.thought)
-      .map(part => part.text)
-      .join('\n');
+      .filter((part) => part.text && !part.thought)
+      .map((part) => part.text)
+      .join("\n");
 
     // Build unified response
     const unifiedResponse = {
       id: data.response.responseId,
-      choices: [{
-        finish_reason: (candidate.finishReason || 'stop').toLowerCase(),
-        index: 0,
-        message: {
-          content: textContent,
-          role: 'assistant',
-          ...(toolCalls.length > 0 && { tool_calls: toolCalls }),
-          ...(thinkingSignature && {
-            thinking: {
-              content: thinkingContent || '(no content)',
-              signature: thinkingSignature
-            }
-          })
-        }
-      }],
+      choices: [
+        {
+          finish_reason: (candidate.finishReason || "stop").toLowerCase(),
+          index: 0,
+          message: {
+            content: textContent,
+            role: "assistant",
+            ...(toolCalls.length > 0 && { tool_calls: toolCalls }),
+            ...(thinkingSignature && {
+              thinking: {
+                content: thinkingContent || "(no content)",
+                signature: thinkingSignature,
+              },
+            }),
+          },
+        },
+      ],
       created: Math.floor(Date.now() / 1000),
-      model: modelToUse,  // Use requested model for dynamic switching
-      object: 'chat.completion',
+      model: modelToUse, // Use requested model for dynamic switching
+      object: "chat.completion",
       usage: {
-        completion_tokens: data.response.usageMetadata?.candidatesTokenCount || 0,
+        completion_tokens:
+          data.response.usageMetadata?.candidatesTokenCount || 0,
         prompt_tokens: data.response.usageMetadata?.promptTokenCount || 0,
-        total_tokens: data.response.usageMetadata?.totalTokenCount || 0
-      }
+        total_tokens: data.response.usageMetadata?.totalTokenCount || 0,
+      },
     };
 
     return new Response(JSON.stringify(unifiedResponse), {
       status: response.status,
       statusText: response.statusText,
-      headers: response.headers
+      headers: response.headers,
     });
   }
 
@@ -889,10 +989,14 @@ class AntigravityTransformer {
 
     const decoder = new TextDecoder();
     const encoder = new TextEncoder();
-    
-    // Use requested model or fall back to configured default
-    const modelToUse = requestedModel || this.options.defaultModel;
-    
+
+    // Use requested model, or use reverse mapping if it's an Antigravity model, or fall back to default
+    let modelToUse = requestedModel || this.options.defaultModel;
+    // Convert Antigravity model names back to Claude model names
+    if (this.reverseModelMapping[modelToUse]) {
+      modelToUse = this.reverseModelMapping[modelToUse];
+    }
+
     // State tracking
     let messageStartSent = false;
     let thinkingBlockStarted = false;
@@ -910,11 +1014,15 @@ class AntigravityTransformer {
     const stream = new ReadableStream({
       async start(controller) {
         const reader = response.body.getReader();
-        let buffer = '';
+        let buffer = "";
 
         // Helper to send SSE event
         const sendEvent = (eventType, data) => {
-          controller.enqueue(encoder.encode(`event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`));
+          controller.enqueue(
+            encoder.encode(
+              `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`
+            )
+          );
         };
 
         try {
@@ -923,25 +1031,26 @@ class AntigravityTransformer {
             if (done) break;
 
             buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop() || '';
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
 
             for (const line of lines) {
-              if (line.startsWith('data: ')) {
+              if (line.startsWith("data: ")) {
                 const chunkStr = line.slice(6).trim();
                 if (!chunkStr) continue;
 
                 try {
                   const chunk = JSON.parse(chunkStr);
-                  
+
                   // Handle both wrapped {"response": {...}} and unwrapped {...} formats
                   const responseData = chunk.response || chunk;
-                  
+
                   if (!responseData.candidates?.[0]) continue;
 
                   const candidate = responseData.candidates[0];
                   const parts = candidate.content?.parts || [];
-                  const responseId = responseData.responseId || `msg_${Date.now()}`;
+                  const responseId =
+                    responseData.responseId || `msg_${Date.now()}`;
                   // Use requested model for dynamic model switching
                   const normalizedModel = modelToUse;
 
@@ -952,98 +1061,109 @@ class AntigravityTransformer {
 
                   // Send message_start if not sent yet
                   if (!messageStartSent) {
-                    sendEvent('message_start', {
-                      type: 'message_start',
+                    sendEvent("message_start", {
+                      type: "message_start",
                       message: {
                         id: responseId,
-                        type: 'message',
-                        role: 'assistant',
+                        type: "message",
+                        role: "assistant",
                         content: [],
                         model: normalizedModel,
                         stop_reason: null,
                         stop_sequence: null,
-                        usage: { input_tokens: 0, output_tokens: 0 }
-                      }
+                        usage: { input_tokens: 0, output_tokens: 0 },
+                      },
                     });
                     messageStartSent = true;
                   }
 
                   // Process thinking parts FIRST
-                  const thinkingParts = parts.filter(p => p.text && p.thought === true);
-                  
+                  const thinkingParts = parts.filter(
+                    (p) => p.text && p.thought === true
+                  );
+
                   // Debug: Log if we have thinking content
                   if (thinkingParts.length > 0) {
-                    console.log(`[antigravity] Found ${thinkingParts.length} thinking parts`);
+                    console.log(
+                      `[antigravity] Found ${thinkingParts.length} thinking parts`
+                    );
                   }
                   // Also check for any part with 'thought' to debug
-                  const anyThoughtParts = parts.filter(p => 'thought' in p);
+                  const anyThoughtParts = parts.filter((p) => "thought" in p);
                   if (anyThoughtParts.length > 0) {
-                    console.log(`[antigravity] Parts with 'thought' field:`, JSON.stringify(anyThoughtParts.slice(0, 1)));
+                    console.log(
+                      `[antigravity] Parts with 'thought' field:`,
+                      JSON.stringify(anyThoughtParts.slice(0, 1))
+                    );
                   }
-                  
+
                   for (const part of thinkingParts) {
                     hasThinkingContent = true;
-                    
+
                     // Start thinking block if not started
                     if (!thinkingBlockStarted) {
                       currentBlockIndex++;
                       thinkingBlockIndex = currentBlockIndex;
-                      sendEvent('content_block_start', {
-                        type: 'content_block_start',
+                      sendEvent("content_block_start", {
+                        type: "content_block_start",
                         index: thinkingBlockIndex,
-                        content_block: { type: 'thinking', thinking: '' }
+                        content_block: { type: "thinking", thinking: "" },
                       });
                       thinkingBlockStarted = true;
                     }
 
                     // Send thinking delta
-                    sendEvent('content_block_delta', {
-                      type: 'content_block_delta',
+                    sendEvent("content_block_delta", {
+                      type: "content_block_delta",
                       index: thinkingBlockIndex,
-                      delta: { type: 'thinking_delta', thinking: part.text }
+                      delta: { type: "thinking_delta", thinking: part.text },
                     });
                   }
 
                   // Handle thought signature - close thinking block
-                  const signature = parts.find(p => p.thoughtSignature)?.thoughtSignature;
+                  const signature = parts.find(
+                    (p) => p.thoughtSignature
+                  )?.thoughtSignature;
                   if (signature && !signatureSent) {
                     // Start thinking block if we have signature but no thinking content
                     if (!thinkingBlockStarted) {
                       currentBlockIndex++;
                       thinkingBlockIndex = currentBlockIndex;
-                      sendEvent('content_block_start', {
-                        type: 'content_block_start',
+                      sendEvent("content_block_start", {
+                        type: "content_block_start",
                         index: thinkingBlockIndex,
-                        content_block: { type: 'thinking', thinking: '' }
+                        content_block: { type: "thinking", thinking: "" },
                       });
                       thinkingBlockStarted = true;
                     }
 
                     // Send signature delta
-                    sendEvent('content_block_delta', {
-                      type: 'content_block_delta',
+                    sendEvent("content_block_delta", {
+                      type: "content_block_delta",
                       index: thinkingBlockIndex,
-                      delta: { type: 'signature_delta', signature: signature }
+                      delta: { type: "signature_delta", signature: signature },
                     });
-                    
+
                     // Close thinking block
-                    sendEvent('content_block_stop', {
-                      type: 'content_block_stop',
-                      index: thinkingBlockIndex
+                    sendEvent("content_block_stop", {
+                      type: "content_block_stop",
+                      index: thinkingBlockIndex,
                     });
-                    
+
                     signatureSent = true;
                     thinkingBlockStarted = false; // Marked as closed
                   }
 
                   // Process text content (non-thinking)
-                  const textParts = parts.filter(p => p.text && p.thought !== true);
+                  const textParts = parts.filter(
+                    (p) => p.text && p.thought !== true
+                  );
                   for (const part of textParts) {
                     // Close thinking block if still open and starting text
                     if (thinkingBlockStarted && !signatureSent) {
-                      sendEvent('content_block_stop', {
-                        type: 'content_block_stop',
-                        index: thinkingBlockIndex
+                      sendEvent("content_block_stop", {
+                        type: "content_block_stop",
+                        index: thinkingBlockIndex,
                       });
                       thinkingBlockStarted = false;
                     }
@@ -1052,131 +1172,164 @@ class AntigravityTransformer {
                     if (!textBlockStarted) {
                       currentBlockIndex++;
                       textBlockIndex = currentBlockIndex;
-                      sendEvent('content_block_start', {
-                        type: 'content_block_start',
+                      sendEvent("content_block_start", {
+                        type: "content_block_start",
                         index: textBlockIndex,
-                        content_block: { type: 'text', text: '' }
+                        content_block: { type: "text", text: "" },
                       });
                       textBlockStarted = true;
                     }
 
                     // Send text delta
-                    sendEvent('content_block_delta', {
-                      type: 'content_block_delta',
+                    sendEvent("content_block_delta", {
+                      type: "content_block_delta",
                       index: textBlockIndex,
-                      delta: { type: 'text_delta', text: part.text }
+                      delta: { type: "text_delta", text: part.text },
                     });
                   }
 
                   // Process tool calls
-                  const toolCallParts = parts.filter(p => p.functionCall);
+                  const toolCallParts = parts.filter((p) => p.functionCall);
                   for (const part of toolCallParts) {
+                    // Close any open blocks before starting tool use
+                    if (thinkingBlockStarted && !signatureSent) {
+                      sendEvent("content_block_stop", {
+                        type: "content_block_stop",
+                        index: thinkingBlockIndex,
+                      });
+                      thinkingBlockStarted = false;
+                    }
+                    if (textBlockStarted) {
+                      sendEvent("content_block_stop", {
+                        type: "content_block_stop",
+                        index: textBlockIndex,
+                      });
+                      textBlockStarted = false;
+                    }
 
                     // Regular tool call - emit as tool_use
                     currentBlockIndex++;
                     const toolBlockIndex = currentBlockIndex;
-                    const toolId = part.functionCall.id || `toolu_${Math.random().toString(36).substring(2, 15)}`;
-                    
-                    sendEvent('content_block_start', {
-                      type: 'content_block_start',
+                    const toolId =
+                      part.functionCall.id ||
+                      `toolu_${Math.random().toString(36).substring(2, 15)}`;
+
+                    sendEvent("content_block_start", {
+                      type: "content_block_start",
                       index: toolBlockIndex,
                       content_block: {
-                        type: 'tool_use',
+                        type: "tool_use",
                         id: toolId,
                         name: part.functionCall.name,
-                        input: {}
-                      }
+                        input: {},
+                      },
                     });
 
                     // Send tool input as delta
-                    sendEvent('content_block_delta', {
-                      type: 'content_block_delta',
+                    sendEvent("content_block_delta", {
+                      type: "content_block_delta",
                       index: toolBlockIndex,
                       delta: {
-                        type: 'input_json_delta',
-                        partial_json: JSON.stringify(part.functionCall.args || {})
-                      }
+                        type: "input_json_delta",
+                        partial_json: JSON.stringify(
+                          part.functionCall.args || {}
+                        ),
+                      },
                     });
 
                     // Close tool block
-                    sendEvent('content_block_stop', {
-                      type: 'content_block_stop',
-                      index: toolBlockIndex
+                    sendEvent("content_block_stop", {
+                      type: "content_block_stop",
+                      index: toolBlockIndex,
                     });
                   }
 
                   // Handle groundingMetadata from googleSearch tool
                   // Transform Antigravity's search results to Claude's web_search_tool_result format
-                  if (candidate.groundingMetadata && candidate.groundingMetadata.groundingChunks && !webSearchResultsSent) {
-                    const groundingChunks = candidate.groundingMetadata.groundingChunks;
-                    
+                  if (
+                    candidate.groundingMetadata &&
+                    candidate.groundingMetadata.groundingChunks &&
+                    !webSearchResultsSent
+                  ) {
+                    const groundingChunks =
+                      candidate.groundingMetadata.groundingChunks;
+
                     if (groundingChunks.length > 0) {
                       // Close text block if open before emitting search results
                       if (textBlockStarted) {
-                        sendEvent('content_block_stop', {
-                          type: 'content_block_stop',
-                          index: textBlockIndex
+                        sendEvent("content_block_stop", {
+                          type: "content_block_stop",
+                          index: textBlockIndex,
                         });
                         textBlockStarted = false;
                       }
 
                       // Generate a tool use ID for the search
-                      const searchToolId = `srvtoolu_${Math.random().toString(36).substring(2, 15)}`;
-                      const searchQuery = (candidate.groundingMetadata.webSearchQueries || [])[0] || '';
-                      
+                      const searchToolId = `srvtoolu_${Math.random()
+                        .toString(36)
+                        .substring(2, 15)}`;
+                      const searchQuery =
+                        (candidate.groundingMetadata.webSearchQueries ||
+                          [])[0] || "";
+
                       // Emit server_tool_use block
                       currentBlockIndex++;
                       const serverToolUseIndex = currentBlockIndex;
-                      sendEvent('content_block_start', {
-                        type: 'content_block_start',
+                      sendEvent("content_block_start", {
+                        type: "content_block_start",
                         index: serverToolUseIndex,
                         content_block: {
-                          type: 'server_tool_use',
+                          type: "server_tool_use",
                           id: searchToolId,
-                          name: 'web_search',
-                          input: { query: searchQuery }
-                        }
+                          name: "web_search",
+                          input: { query: searchQuery },
+                        },
                       });
-                      sendEvent('content_block_stop', {
-                        type: 'content_block_stop',
-                        index: serverToolUseIndex
+                      sendEvent("content_block_stop", {
+                        type: "content_block_stop",
+                        index: serverToolUseIndex,
                       });
 
                       // Build web_search_tool_result from groundingChunks
                       const webSearchResults = groundingChunks
-                        .filter(chunk => chunk.web)
+                        .filter((chunk) => chunk.web)
                         .map((chunk, index) => {
                           // Generate encrypted_content placeholder
-                          const contentData = `${chunk.web.uri}:${index}:${Date.now()}`;
-                          const encrypted_content = Buffer.from(contentData).toString('base64');
-                          
+                          const contentData = `${
+                            chunk.web.uri
+                          }:${index}:${Date.now()}`;
+                          const encrypted_content =
+                            Buffer.from(contentData).toString("base64");
+
                           return {
-                            type: 'web_search_result',
+                            type: "web_search_result",
                             title: chunk.web.title || chunk.web.domain,
                             url: chunk.web.uri,
                             encrypted_content: encrypted_content,
-                            page_age: null
+                            page_age: null,
                           };
                         });
 
                       // Emit web_search_tool_result block
                       currentBlockIndex++;
                       const searchResultIndex = currentBlockIndex;
-                      sendEvent('content_block_start', {
-                        type: 'content_block_start',
+                      sendEvent("content_block_start", {
+                        type: "content_block_start",
                         index: searchResultIndex,
                         content_block: {
-                          type: 'web_search_tool_result',
+                          type: "web_search_tool_result",
                           tool_use_id: searchToolId,
-                          content: webSearchResults
-                        }
+                          content: webSearchResults,
+                        },
                       });
-                      sendEvent('content_block_stop', {
-                        type: 'content_block_stop',
-                        index: searchResultIndex
+                      sendEvent("content_block_stop", {
+                        type: "content_block_stop",
+                        index: searchResultIndex,
                       });
 
-                      console.log(`[antigravity] Emitted ${webSearchResults.length} web search results`);
+                      console.log(
+                        `[antigravity] Emitted ${webSearchResults.length} web search results`
+                      );
                     }
                   }
 
@@ -1184,39 +1337,48 @@ class AntigravityTransformer {
                   if (candidate.finishReason) {
                     // Close any open blocks
                     if (thinkingBlockStarted) {
-                      sendEvent('content_block_stop', {
-                        type: 'content_block_stop',
-                        index: thinkingBlockIndex
+                      sendEvent("content_block_stop", {
+                        type: "content_block_stop",
+                        index: thinkingBlockIndex,
                       });
                       thinkingBlockStarted = false;
                     }
                     if (textBlockStarted) {
-                      sendEvent('content_block_stop', {
-                        type: 'content_block_stop',
-                        index: textBlockIndex
+                      sendEvent("content_block_stop", {
+                        type: "content_block_stop",
+                        index: textBlockIndex,
                       });
                       textBlockStarted = false;
                     }
 
                     // Send message_delta with stop reason and actual usage
-                    const inputTokens = lastUsageMetadata?.promptTokenCount || 0;
-                    const outputTokens = lastUsageMetadata?.candidatesTokenCount || 0;
-                    sendEvent('message_delta', {
-                      type: 'message_delta',
+                    const inputTokens =
+                      lastUsageMetadata?.promptTokenCount || 0;
+                    const outputTokens =
+                      lastUsageMetadata?.candidatesTokenCount || 0;
+                    sendEvent("message_delta", {
+                      type: "message_delta",
                       delta: {
-                        stop_reason: 'end_turn',
-                        stop_sequence: null
+                        stop_reason: "end_turn",
+                        stop_sequence: null,
                       },
-                      usage: { input_tokens: inputTokens, output_tokens: outputTokens, cache_read_input_tokens: 0 }
+                      usage: {
+                        input_tokens: inputTokens,
+                        output_tokens: outputTokens,
+                        cache_read_input_tokens: 0,
+                      },
                     });
 
                     // Send message_stop
-                    sendEvent('message_stop', {
-                      type: 'message_stop'
+                    sendEvent("message_stop", {
+                      type: "message_stop",
                     });
                   }
                 } catch (error) {
-                  console.error('[antigravity] Error parsing SSE chunk:', error.message);
+                  console.error(
+                    "[antigravity] Error parsing SSE chunk:",
+                    error.message
+                  );
                 }
               }
             }
@@ -1224,41 +1386,51 @@ class AntigravityTransformer {
 
           // Close any remaining open blocks
           if (thinkingBlockStarted) {
-            sendEvent('content_block_stop', { type: 'content_block_stop', index: thinkingBlockIndex });
+            sendEvent("content_block_stop", {
+              type: "content_block_stop",
+              index: thinkingBlockIndex,
+            });
           }
           if (textBlockStarted) {
-            sendEvent('content_block_stop', { type: 'content_block_stop', index: textBlockIndex });
+            sendEvent("content_block_stop", {
+              type: "content_block_stop",
+              index: textBlockIndex,
+            });
           }
 
           // Ensure message is properly closed if not already
           if (messageStartSent) {
             const inputTokens = lastUsageMetadata?.promptTokenCount || 0;
             const outputTokens = lastUsageMetadata?.candidatesTokenCount || 0;
-            sendEvent('message_delta', {
-              type: 'message_delta',
-              delta: { stop_reason: 'end_turn', stop_sequence: null },
-              usage: { input_tokens: inputTokens, output_tokens: outputTokens, cache_read_input_tokens: 0 }
+            sendEvent("message_delta", {
+              type: "message_delta",
+              delta: { stop_reason: "end_turn", stop_sequence: null },
+              usage: {
+                input_tokens: inputTokens,
+                output_tokens: outputTokens,
+                cache_read_input_tokens: 0,
+              },
             });
-            sendEvent('message_stop', { type: 'message_stop' });
+            sendEvent("message_stop", { type: "message_stop" });
           }
 
           controller.close();
         } catch (error) {
-          console.error('[antigravity] Stream error:', error);
+          console.error("[antigravity] Stream error:", error);
           controller.error(error);
         }
-      }
+      },
     });
 
     return new Response(stream, {
       status: response.status,
       statusText: response.statusText,
       headers: new Headers({
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'X-Skip-Response-Transform': 'true'  // Skip Anthropic transformResponseIn since we output Anthropic format directly
-      })
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        "X-Skip-Response-Transform": "true", // Skip Anthropic transformResponseIn since we output Anthropic format directly
+      }),
     });
   }
 }

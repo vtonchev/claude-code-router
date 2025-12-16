@@ -94,7 +94,7 @@ async function main() {
       await showStatus();
       break;
     case "statusline":
-      // 从stdin读取JSON输入
+      // Read JSON input from stdin
       let inputData = "";
       process.stdin.setEncoding("utf-8");
       process.stdin.on("readable", () => {
