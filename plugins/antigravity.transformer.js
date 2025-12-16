@@ -705,12 +705,18 @@ class AntigravityTransformer {
       return this.transformWebSearchResponse(result, { model: requestedModel });
     }
 
-    // Streaming SSE response - transform from Antigravity to Anthropic format
+    // Streaming SSE response - transform from Antigravity to OpenAI format
+    // The Anthropic transformer will then convert OpenAI -> Anthropic
     if (
       contentType.includes("text/event-stream") ||
       contentType.includes("stream")
     ) {
-      return this.transformStreamResponse(response, requestedModel);
+      // Use OpenAI format for Anthropic transformer to handle
+      return this.transformStreamResponseToOpenAI(response, requestedModel);
+
+      // LEGACY: Direct Anthropic format (bypasses Anthropic transformer)
+      // Uncomment this and comment out the line above to use legacy behavior:
+      // return this.transformStreamResponse(response, requestedModel);
     }
 
     if (contentType.includes("application/json")) {
@@ -979,8 +985,266 @@ class AntigravityTransformer {
   }
 
   /**
+   * Transform streaming SSE response from Antigravity to OpenAI format
+   * This allows the Anthropic transformer to handle the conversion to Anthropic SSE
+   *
+   * OpenAI SSE format uses:
+   * - choices[0].delta.thinking.content for thinking text
+   * - choices[0].delta.thinking.signature for thought signature
+   * - choices[0].delta.content for regular text
+   * - choices[0].delta.tool_calls for function calls
+   * - usage for token counts
+   */
+  transformStreamResponseToOpenAI(response, requestedModel) {
+    if (!response.body) {
+      return response;
+    }
+
+    const decoder = new TextDecoder();
+    const encoder = new TextEncoder();
+    const transformer = this;
+
+    // Use requested model, or use reverse mapping if it's an Antigravity model, or fall back to default
+    let modelToUse = requestedModel || this.options.defaultModel;
+    if (this.reverseModelMapping[modelToUse]) {
+      modelToUse = this.reverseModelMapping[modelToUse];
+    }
+
+    // State tracking
+    let buffer = "";
+    let lastUsageMetadata = null;
+    let responseId = `chatcmpl-${Date.now()}`;
+    let toolCallIndex = 0;
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        const reader = response.body.getReader();
+
+        // Helper to send SSE data line
+        const sendData = (data) => {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
+          );
+        };
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              if (!line.startsWith("data:")) continue;
+              const chunkStr = line.slice(5).trim();
+              if (!chunkStr) continue;
+
+              try {
+                const chunk = JSON.parse(chunkStr);
+
+                // Handle both wrapped {"response": {...}} and unwrapped {...} formats
+                const responseData = chunk.response || chunk;
+
+                if (!responseData.candidates?.[0]) continue;
+
+                const candidate = responseData.candidates[0];
+                const parts = candidate.content?.parts || [];
+
+                // Update responseId if available
+                if (responseData.responseId) {
+                  responseId = responseData.responseId;
+                }
+
+                // Read model from response's modelVersion and convert to Claude model name
+                if (responseData.modelVersion) {
+                  modelToUse = responseData.modelVersion;
+                  // Convert Antigravity model name to Claude model name
+                  if (transformer.reverseModelMapping[modelToUse]) {
+                    modelToUse = transformer.reverseModelMapping[modelToUse];
+                  }
+                }
+
+                // Track usage metadata
+                if (responseData.usageMetadata) {
+                  lastUsageMetadata = responseData.usageMetadata;
+                }
+
+                // Process thinking parts - emit as delta.thinking.content
+                const thinkingParts = parts.filter(
+                  (p) => p.text && p.thought === true
+                );
+                for (const part of thinkingParts) {
+                  sendData({
+                    id: responseId,
+                    object: "chat.completion.chunk",
+                    created: Math.floor(Date.now() / 1000),
+                    model: modelToUse,
+                    choices: [
+                      {
+                        index: 0,
+                        delta: {
+                          thinking: {
+                            content: part.text,
+                          },
+                        },
+                        finish_reason: null,
+                      },
+                    ],
+                  });
+                }
+
+                // Process thought signature - emit as delta.thinking.signature
+                const signature = parts.find(
+                  (p) => p.thoughtSignature
+                )?.thoughtSignature;
+                if (signature) {
+                  sendData({
+                    id: responseId,
+                    object: "chat.completion.chunk",
+                    created: Math.floor(Date.now() / 1000),
+                    model: modelToUse,
+                    choices: [
+                      {
+                        index: 0,
+                        delta: {
+                          thinking: {
+                            signature: signature,
+                          },
+                        },
+                        finish_reason: null,
+                      },
+                    ],
+                  });
+                }
+
+                // Process text content (non-thinking) - emit as delta.content
+                const textParts = parts.filter(
+                  (p) => p.text && p.thought !== true
+                );
+                for (const part of textParts) {
+                  sendData({
+                    id: responseId,
+                    object: "chat.completion.chunk",
+                    created: Math.floor(Date.now() / 1000),
+                    model: modelToUse,
+                    choices: [
+                      {
+                        index: 0,
+                        delta: {
+                          content: part.text,
+                        },
+                        finish_reason: null,
+                      },
+                    ],
+                  });
+                }
+
+                // Process tool calls - emit as delta.tool_calls
+                const toolCallParts = parts.filter((p) => p.functionCall);
+                for (const part of toolCallParts) {
+                  const toolId =
+                    part.functionCall.id ||
+                    `call_${Math.random().toString(36).substring(2, 15)}`;
+
+                  sendData({
+                    id: responseId,
+                    object: "chat.completion.chunk",
+                    created: Math.floor(Date.now() / 1000),
+                    model: modelToUse,
+                    choices: [
+                      {
+                        index: 0,
+                        delta: {
+                          tool_calls: [
+                            {
+                              index: toolCallIndex,
+                              id: toolId,
+                              type: "function",
+                              function: {
+                                name: part.functionCall.name,
+                                arguments: JSON.stringify(
+                                  part.functionCall.args || {}
+                                ),
+                              },
+                            },
+                          ],
+                        },
+                        finish_reason: null,
+                      },
+                    ],
+                  });
+                  toolCallIndex++;
+                }
+
+                // Check for finish reason
+                if (candidate.finishReason) {
+                  const finishReason =
+                    candidate.finishReason === "STOP"
+                      ? "stop"
+                      : candidate.finishReason.toLowerCase();
+
+                  sendData({
+                    id: responseId,
+                    object: "chat.completion.chunk",
+                    created: Math.floor(Date.now() / 1000),
+                    model: modelToUse,
+                    choices: [
+                      {
+                        index: 0,
+                        delta: {},
+                        finish_reason: finishReason,
+                      },
+                    ],
+                    usage: lastUsageMetadata
+                      ? {
+                          prompt_tokens:
+                            lastUsageMetadata.promptTokenCount || 0,
+                          completion_tokens:
+                            lastUsageMetadata.candidatesTokenCount || 0,
+                          total_tokens: lastUsageMetadata.totalTokenCount || 0,
+                          prompt_tokens_details: {
+                            cached_tokens:
+                              lastUsageMetadata.cachedContentTokenCount || 0,
+                          },
+                        }
+                      : undefined,
+                  });
+                }
+              } catch (e) {
+                console.error("[antigravity] Error parsing OpenAI chunk:", e);
+              }
+            }
+          }
+
+          // Send [DONE] to signal end of stream
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        } catch (error) {
+          console.error("[antigravity] Stream error (OpenAI format):", error);
+          controller.error(error);
+        }
+      },
+    });
+
+    return new Response(stream, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: new Headers({
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        // Do NOT set X-Skip-Response-Transform - let Anthropic transformer handle it
+      }),
+    });
+  }
+
+  /**
    * Transform streaming SSE response from Antigravity to Anthropic format
    * Claude CLI expects Anthropic SSE events, not OpenAI format
+   *
+   * LEGACY: This is the direct-to-Anthropic transformation (backup)
    */
   transformStreamResponse(response, requestedModel) {
     if (!response.body) {

@@ -493,12 +493,16 @@ class AntigravityWebSearchTransformer {
               content_block: { type: "text", text: "" },
             });
 
-            // Send text delta
-            sendEvent("content_block_delta", {
-              type: "content_block_delta",
-              index: blockIndex,
-              delta: { type: "text_delta", text: textContent },
-            });
+            // Split text into smaller chunks for streaming (20 chars each for more granular streaming)
+            const chunkSize = 20;
+            for (let i = 0; i < textContent.length; i += chunkSize) {
+              const textChunk = textContent.slice(i, i + chunkSize);
+              sendEvent("content_block_delta", {
+                type: "content_block_delta",
+                index: blockIndex,
+                delta: { type: "text_delta", text: textChunk },
+              });
+            }
 
             // Emit citations if available
             if (
