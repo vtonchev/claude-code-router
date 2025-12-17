@@ -342,16 +342,6 @@ class AntigravityTransformer {
     // Generate request ID
     const requestId = `agent-${crypto.randomUUID()}`;
 
-    await fs.promises.writeFile(
-      path.join(process.cwd(), "logs", `test-${globalThis.timestamp}.jsonc`),
-      `\
-      //=============================================== \n\
-      //=      Unified Request In                     = \n\
-      //=============================================== \n\
-      ${JSON.stringify(request)}\n`,
-      { encoding: "utf-8", flag: "a" }
-    );
-
     // Build contents array from messages
     const contents = [];
     const toolResponses = request.messages.filter((m) => m.role === "tool");
@@ -703,25 +693,6 @@ class AntigravityTransformer {
       requestType: this.options.requestType,
     };
 
-    // Log full request for debugging
-    // fs.appendFileSync(
-    //   logPath,
-    //   `[${timestamp}] FULL REQUEST:\n${JSON.stringify(
-    //     antigravityRequest,
-    //     null,
-    //     2
-    //   )}\n\n`
-    // );
-    await fs.promises.writeFile(
-      path.join(process.cwd(), "logs", `test-${globalThis.timestamp}.jsonc`),
-      `\
-      //=============================================== \n\
-      //=    Final Antigravity Request                = \n\
-      //=============================================== \n\
-      ${JSON.stringify(antigravityRequest)}
-      \n`,
-      { encoding: "utf-8", flag: "a" }
-    );
     return {
       body: antigravityRequest,
       config: {
