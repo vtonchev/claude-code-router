@@ -231,6 +231,60 @@ function cleanParameters(params) {
 }
 
 /**
+ * Ensure thoughtSignature is properly base64 encoded
+ * If decoded value is not valid ASCII, encode the original to base64
+ * @param {string} signature - The signature to validate/fix
+ * @returns {string} - Properly base64 encoded signature
+ */
+function ensureBase64Signature(signature) {
+  if (!signature) return undefined;
+
+  try {
+    // Try to decode as base64
+    const decoded = Buffer.from(signature, "base64").toString("utf8");
+
+    // Check if decoded value is valid ASCII (all chars 0-127)
+    const isValidAscii = /^[\x00-\x7F]*$/.test(decoded);
+
+    if (!isValidAscii) {
+      // Decoded value is NOT valid ASCII - original was likely plain text
+      // Encode the original signature to base64
+      console.log(
+        "[antigravity] thoughtSignature decoded to non-ASCII, re-encoding to base64"
+      );
+      return Buffer.from(signature).toString("base64");
+    }
+
+    // Decoded value IS valid ASCII - signature is already correctly base64 encoded
+    return signature;
+  } catch (e) {
+    // Invalid base64 encoding - encode the raw value to base64
+    console.log(
+      "[antigravity] thoughtSignature is not valid base64, encoding to base64"
+    );
+    return Buffer.from(signature).toString("base64");
+  }
+}
+
+/**
+ * Decode base64 signature for response transmission
+ * @param {string} signature - The base64 encoded signature
+ * @returns {string} - Decoded signature or original if decoding fails
+ */
+function decodeBase64Signature(signature) {
+  if (!signature) return undefined;
+
+  try {
+    return Buffer.from(signature, "base64").toString("utf8");
+  } catch (e) {
+    console.log(
+      "[antigravity] Failed to decode thoughtSignature, returning original"
+    );
+    return signature;
+  }
+}
+
+/**
  * Antigravity Transformer class
  */
 class AntigravityTransformer {
@@ -321,7 +375,7 @@ class AntigravityTransformer {
         const thinkingPart = {
           text: message.thinking.thinking || message.thinking.content || "",
           thought: true,
-          thoughtSignature: message.thinking.signature || undefined,
+          thoughtSignature: ensureBase64Signature(message.thinking.signature),
         };
         parts.push(thinkingPart);
       }
@@ -924,7 +978,9 @@ class AntigravityTransformer {
     }
 
     // Get thought signature
-    thinkingSignature = parts.find((p) => p.thoughtSignature)?.thoughtSignature;
+    thinkingSignature = decodeBase64Signature(
+      parts.find((p) => p.thoughtSignature)?.thoughtSignature
+    );
 
     // Extract tool calls
     const toolCalls = nonThinkingParts
@@ -1096,9 +1152,9 @@ class AntigravityTransformer {
                 }
 
                 // Process thought signature - emit as delta.thinking.signature
-                const signature = parts.find(
-                  (p) => p.thoughtSignature
-                )?.thoughtSignature;
+                const signature = decodeBase64Signature(
+                  parts.find((p) => p.thoughtSignature)?.thoughtSignature
+                );
                 if (signature) {
                   sendData({
                     id: responseId,
@@ -1385,9 +1441,9 @@ class AntigravityTransformer {
                   }
 
                   // Handle thought signature - close thinking block
-                  const signature = parts.find(
-                    (p) => p.thoughtSignature
-                  )?.thoughtSignature;
+                  const signature = decodeBase64Signature(
+                    parts.find((p) => p.thoughtSignature)?.thoughtSignature
+                  );
                   if (signature && !signatureSent) {
                     // Start thinking block if we have signature but no thinking content
                     if (!thinkingBlockStarted) {
