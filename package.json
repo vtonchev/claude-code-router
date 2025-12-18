@@ -6,7 +6,7 @@
     "ccr": "dist/cli.js"
   },
   "scripts": {
-    "dev": "ts-node -T src/index.ts",
+    "dev": "nodemon",
     "build": "node scripts/build.js",
     "build-server": "esbuild src/cli.ts --bundle --platform=node --outfile=dist/cli.js",
     "start": "node dist/cli.js start",

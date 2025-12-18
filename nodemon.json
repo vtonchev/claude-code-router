@@ -1,0 +1,9 @@
+{
+  "watch": ["src", "plugins", "ui/src", "llms/src"],
+  "ext": "*",
+  "ignore": ["dist/*", "ui/dist/*", "node_modules/*"],
+  "exec": "node scripts/dev-build.js && node dist/cli.js start",
+  "env": {
+    "NODE_ENV": "development"
+  }
+}
